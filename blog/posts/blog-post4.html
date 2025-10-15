@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exploring AWS AI Services and Their Real-World Use Cases</title>
+  <link rel="stylesheet" href="../style.css">
+  <script defer src="../script.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <a class="brand" href="portfolio.srinivaspitchubabu.click">Srinivas</a>
+    <nav class="nav">
+      <a href="portfolio.srinivaspitchubabu.click/index.html#hero">About</a>
+      <a href="portfolio.srinivaspitchubabu.click/experience.html">Experience</a>
+      <a href="portfolio.srinivaspitchubabu.click/projects.html">Projects</a>
+      <a href="http://blog-s3-ap-01.s3-website.ap-south-1.amazonaws.com/">Blog</a>
+    </nav>
+    <button id="theme-toggle">🌙</button>
+  </header>
+
+  <main class="section blog-post">
+    <h1>Exploring AWS AI Services and Their Real-World Use Cases</h1>
+    <p class="meta">Published by Srinivas Pitchubabu • October 2025</p>
+
+    <p>AWS offers a wide range of managed AI services that allow developers and enterprises to integrate machine learning and artificial intelligence capabilities without deep ML expertise. These services power everything from chatbots and voice assistants to text analytics and intelligent document processing.</p>
+
+    <h2>Core AWS AI Services</h2>
+    <ul>
+      <li><strong>Amazon Lex</strong> – Enables conversational AI experiences like chatbots and voice bots using natural language understanding.</li>
+      <li><strong>Amazon Comprehend</strong> – A natural language processing (NLP) service for sentiment analysis, entity recognition, and key phrase extraction.</li>
+      <li><strong>Amazon Rekognition</strong> – Provides image and video analysis for face detection, object recognition, and content moderation.</li>
+      <li><strong>Amazon Polly</strong> – Converts text into realistic speech for voice-enabled applications.</li>
+      <li><strong>Amazon Textract</strong> – Automatically extracts text and data from scanned documents and PDFs.</li>
+      <li><strong>Amazon Bedrock</strong> – Foundation model service to build generative AI applications using models from Anthropic, AI21, and Amazon Titan.</li>
+    </ul>
+
+    <h2>How These Services Work</h2>
+    <p>Each AI service on AWS is a pre-trained model accessible via API or SDK. You simply send data such as text, audio, or images, and the service returns processed insights or predictions. This eliminates the need to manage training infrastructure or ML pipelines.</p>
+    <p>Most services integrate seamlessly with <strong>AWS Lambda</strong>, <strong>S3</strong>, and <strong>API Gateway</strong>, enabling serverless AI workflows and event-driven automation.</p>
+
+    <h2>Example POC: Serverless Chatbot Using AWS Lex and Lambda</h2>
+    <p>To explore AWS conversational AI, I developed a small proof of concept using <strong>Amazon Lex</strong> and <strong>Lambda</strong>. The bot could respond to basic queries such as greetings, order status, and product availability. Lex handled intent recognition, while Lambda processed the logic and returned dynamic responses.</p>
+    <ul>
+      <li>Created a Lex bot with sample intents and slot types.</li>
+      <li>Integrated with Lambda (Python) to generate responses.</li>
+      <li>Monitored logs and performance metrics in CloudWatch.</li>
+      <li>Demonstrated fully serverless AI integration.</li>
+    </ul>
+
+    <h2>Real-World Applications</h2>
+    <ul>
+      <li>Customer support automation through chatbots (Lex + Lambda)</li>
+      <li>Image moderation and tagging (Rekognition + S3)</li>
+      <li>Text sentiment analysis from feedback (Comprehend + QuickSight)</li>
+      <li>Automated invoice data extraction (Textract + DynamoDB)</li>
+      <li>Voice-based apps for accessibility (Polly + IoT)</li>
+    </ul>
+
+    <h2>Takeaway</h2>
+    <p>AWS AI services empower developers to quickly integrate advanced AI into their solutions with minimal setup. From automation to analytics, these services help organizations innovate faster while keeping infrastructure simple and serverless.</p>
+
+    <a href="../blog.html">← Back to Blog</a>
+  </main>
+
+  <footer class="footer">
+    <p>© 2025 Srinivas Pitchubabu</p>
+  </footer>
+</body>
+</html>
