@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Nginx Proxy Manager Gateway
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: npm
+    networks:
+      - gateway_default
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    environment:
+      DB_MYSQL_HOST: db
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: npm
+      DB_MYSQL_PASSWORD: npm
+      DB_MYSQL_NAME: npm
+      DISABLE_IPV6: 'true'
+    volumes:
+      - npm_data:/data:rw
+      - npm_letsencrypt:/etc/letsencrypt:rw
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # MariaDB for Nginx Proxy Manager
+  db:
+    image: jc21/mariadb-aria:latest
+    container_name: db
+    networks:
+      - gateway_default
+    environment:
+      MYSQL_ROOT_PASSWORD: npm
+      MYSQL_DATABASE: npm
+      MYSQL_USER: npm
+      MYSQL_PASSWORD: npm
+    volumes:
+      - npm_db:/var/lib/mysql:rw
+    restart: unless-stopped
+
+  # Portfolio Service (Homepage + Contact Form)
+  portfolio_service:
+    build: ./portfolio
+    image: portfolio:latest
+    container_name: portfolio_service
+    networks:
+      - gateway_default
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  # Experience Service
+  experience_service:
+    build: ./experience
+    image: experience:latest
+    container_name: experience_service
+    networks:
+      - gateway_default
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  # Projects Service
+  projects_service:
+    build: ./projects
+    image: projects:latest
+    container_name: projects_service
+    networks:
+      - gateway_default
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  # Blog Service
+  blog_service:
+    build: ./blog
+    image: blog:latest
+    container_name: blog_service
+    networks:
+      - gateway_default
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  # Contact Service (Node.js Backend with AWS SES)
+  contact_service:
+    build: ./contact
+    image: contact-service:latest
+    container_name: contact_service
+    networks:
+      - gateway_default
+    expose:
+      - "3000"
+    environment:
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-placeholder}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-placeholder}
+      SES_FROM_EMAIL: ${SES_FROM_EMAIL:-noreply@example.com}
+      SES_TO_EMAIL: ${SES_TO_EMAIL:-contact@example.com}
+      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+    restart: unless-stopped
+    depends_on:
+      - npm
+
+networks:
+  gateway_default:
+    driver: bridge
+
+volumes:
+  npm_data:
+  npm_letsencrypt:
+  npm_db:
