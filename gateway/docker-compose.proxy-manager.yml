@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   nginx-proxy-manager:
     image: 'jc21/nginx-proxy-manager:latest'
@@ -21,8 +19,6 @@ services:
       - npm_letsencrypt:/etc/letsencrypt
     depends_on:
       - db
-    networks:
-      - gateway_default
 
   db:
     image: 'jc21/mariadb-aria:latest'
@@ -35,11 +31,9 @@ services:
       MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm}
     volumes:
       - npm_db:/var/lib/mysql
-    networks:
-      - gateway_default
 
 networks:
-  gateway_default:
+  default:
     name: gateway_default
     driver: bridge
 

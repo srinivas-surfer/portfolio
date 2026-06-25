@@ -97,3 +97,101 @@ mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ ^C
 mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ ^C
 mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ ^C
 mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ 
+
+## Solution
+
+### Root Cause
+
+The Docker images built successfully. The actual failure happened after build, when Docker Compose tried to attach containers to the existing Docker network named `gateway_default`.
+
+The existing network had this Compose network label:
+
+```text
+com.docker.compose.network=default
+```
+
+But the previous `docker-compose.yml` expected:
+
+```text
+com.docker.compose.network=gateway_default
+```
+
+That label mismatch caused Docker Compose to stop with:
+
+```text
+network gateway_default was found but has incorrect label com.docker.compose.network set to "default" (expected: "gateway_default")
+```
+
+The warning about `version` being obsolete was not the main failure, but it was cleaned up too.
+
+The warning about `buildx` not being installed was also not fatal. Docker still built all images successfully.
+
+### Repo Fix Applied
+
+Updated both compose files:
+
+- Removed obsolete top-level `version`.
+- Changed the Compose network key from `gateway_default` to `default`.
+- Kept the actual Docker network name as `gateway_default`.
+
+The network section now uses this pattern:
+
+```yaml
+networks:
+  default:
+    name: gateway_default
+    driver: bridge
+```
+
+This matches the existing network label shown in the error and avoids the startup failure.
+
+### Commands To Run On Linux
+
+From the project root:
+
+```bash
+docker compose down
+docker compose up -d --build
+docker compose ps
+```
+
+If Docker still reports a network label mismatch, remove the stale network and start again:
+
+```bash
+docker compose down
+docker network rm gateway_default
+docker compose up -d --build
+docker compose ps
+```
+
+Only remove the network when no other containers are using it. You can check first with:
+
+```bash
+docker network inspect gateway_default
+```
+
+### Expected Result
+
+After the fix, `docker compose ps` should show containers similar to:
+
+```text
+npm
+db
+portfolio_service
+experience_service
+projects_service
+blog_service
+contact_service
+```
+
+Then check the contact service:
+
+```bash
+docker compose exec contact_service wget -qO- http://localhost:3000/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```

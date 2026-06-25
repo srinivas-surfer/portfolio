@@ -1,12 +1,8 @@
-version: '3.8'
-
 services:
   # Nginx Proxy Manager Gateway
   npm:
     image: jc21/nginx-proxy-manager:latest
     container_name: npm
-    networks:
-      - gateway_default
     ports:
       - "80:80"
       - "81:81"
@@ -29,8 +25,6 @@ services:
   db:
     image: jc21/mariadb-aria:latest
     container_name: db
-    networks:
-      - gateway_default
     environment:
       MYSQL_ROOT_PASSWORD: ${NPM_DB_ROOT_PASSWORD:-npm}
       MYSQL_DATABASE: npm
@@ -45,8 +39,6 @@ services:
     build: ./portfolio
     image: portfolio:latest
     container_name: portfolio_service
-    networks:
-      - gateway_default
     expose:
       - "80"
     depends_on:
@@ -58,8 +50,6 @@ services:
     build: ./experience
     image: experience:latest
     container_name: experience_service
-    networks:
-      - gateway_default
     expose:
       - "80"
     restart: unless-stopped
@@ -69,8 +59,6 @@ services:
     build: ./projects
     image: projects:latest
     container_name: projects_service
-    networks:
-      - gateway_default
     expose:
       - "80"
     restart: unless-stopped
@@ -80,8 +68,6 @@ services:
     build: ./blog
     image: blog:latest
     container_name: blog_service
-    networks:
-      - gateway_default
     expose:
       - "80"
     restart: unless-stopped
@@ -91,8 +77,6 @@ services:
     build: ./contact
     image: contact-service:latest
     container_name: contact_service
-    networks:
-      - gateway_default
     expose:
       - "3000"
     env_file:
@@ -100,7 +84,7 @@ services:
     restart: unless-stopped
 
 networks:
-  gateway_default:
+  default:
     name: gateway_default
     driver: bridge
 
