@@ -1,115 +1,131 @@
-# Modular Portfolio Deployment (Portfolio + Blog)
+# Srinivas Portfolio
 
-Two containers:
-- **portfolio/** → Home, Experience, Projects (served on :8080)
-- **blog/** → Blog list + posts (served on :8081)
+Dockerized portfolio site split into small services:
 
-## Deploy with Terraform
+- `portfolio/` - home page and contact form
+- `experience/` - career and experience page
+- `projects/` - project showcase
+- `blog/` - blog listing and posts
+- `contact/` - Node.js contact API using AWS SES
+- `gateway/` - optional standalone Nginx Proxy Manager setup
+- `terraform/` - AWS EC2 host provisioning
+
+The root `docker-compose.yml` is the primary local orchestration file. It runs all services on a shared Docker network named `gateway_default`.
+
+## Architecture
+
+```text
+Browser
+  |
+  v
+Nginx Proxy Manager (:80, :443, :81 admin)
+  |
+  +-- portfolio.localhost  -> portfolio_service:80
+  +-- experience.localhost -> experience_service:80
+  +-- projects.localhost   -> projects_service:80
+  +-- blog.localhost       -> blog_service:80
+
+portfolio_service
+  |
+  +-- /api/contact -> contact_service:3000
 ```
+
+The static services are private to the Docker network. Only Nginx Proxy Manager publishes host ports.
+
+## Run Locally
+
+Create a contact environment file:
+
+```bash
+cp contact/.env.example contact/.env
+```
+
+Set real AWS SES values in `contact/.env` when you want the contact form to send email.
+
+Optional: copy `.env.example` to `.env` if you want to override the local Nginx Proxy Manager database password defaults.
+
+Start the full stack:
+
+```bash
+docker compose up -d --build
+```
+
+Open the Nginx Proxy Manager admin UI:
+
+```text
+http://localhost:81
+```
+
+Default first-login credentials are provided by Nginx Proxy Manager:
+
+```text
+Email: admin@example.com
+Password: changeme
+```
+
+Change that password immediately after first login.
+
+## Proxy Hosts
+
+Create these proxy hosts in Nginx Proxy Manager:
+
+| Domain | Forward Host | Forward Port |
+| --- | --- | --- |
+| `portfolio.localhost` | `portfolio_service` | `80` |
+| `experience.localhost` | `experience_service` | `80` |
+| `projects.localhost` | `projects_service` | `80` |
+| `blog.localhost` | `blog_service` | `80` |
+
+The contact form posts to `/api/contact` on the portfolio service. The portfolio Nginx config proxies that path to `contact_service:3000`.
+
+## Useful Commands
+
+```bash
+docker compose ps
+docker compose logs -f portfolio_service
+docker compose logs -f contact_service
+docker compose restart portfolio_service
+docker compose down
+```
+
+Build one service:
+
+```bash
+docker compose build portfolio_service
+```
+
+Test the contact service from inside the Docker network:
+
+```bash
+docker compose exec npm curl -s http://contact_service:3000/health
+```
+
+## Terraform
+
+Terraform provisions a simple EC2 host, VPC, subnet, route table, and security group. The security group opens:
+
+- `22` for SSH, controlled by `ssh_cidr_blocks`
+- `80` for HTTP
+- `443` for HTTPS
+- `81` for Nginx Proxy Manager admin only when `admin_cidr_blocks` is set
+
+Example:
+
+```bash
 cd terraform
 terraform init
-terraform apply -auto-approve   -var region=ap-south-1   -var ami_id=ami-xxxxxxxx   -var key_name=your-keypair
-```
-Grab the `public_ip` output for GitHub Actions secrets.
-
-## Configure GitHub Secrets
-- `EC2_HOST` → your instance public IP
-- `EC2_USER` → usually `ubuntu`
-- `EC2_SSH_KEY` → contents of your private key (BEGIN/END lines included)
-
-On push to **portfolio/** or **blog/**, CI uploads files to EC2 and rebuilds containers.
-
-## Deployment architecture
-
-### Services
-- **portfolio** → static site on port 8080
-- **blog** → static site on port 8081  
-- **gateway** → Nginx Proxy Manager on ports 80/443/81 (admin UI)
-
-### Traffic flow
-```
-User → portfolio.example.com:443 (gateway)
-       ↓ (proxy passes to)
-       127.0.0.1:8080 (portfolio container)
-
-User → blog.example.com:443 (gateway)
-       ↓ (proxy passes to)
-       127.0.0.1:8081 (blog container)
+terraform apply \
+  -var region=ap-south-1 \
+  -var ami_id=ami-xxxxxxxx \
+  -var key_name=your-keypair \
+  -var 'ssh_cidr_blocks=["YOUR_IP/32"]' \
+  -var 'admin_cidr_blocks=["YOUR_IP/32"]'
 ```
 
-### Monitoring
-- Logs ship from portfolio and blog containers to Grafana Cloud Loki
-- Gateway access logs also ship to Grafana Cloud
-- Logs labeled by service: `portfolio`, `blog`, `gateway`
+The EC2 user data installs Docker and Docker Compose. It does not copy this repository or deploy the containers for you.
 
----
+## Notes
 
-## Local deployment
-
-### 1. Start the services
-
-```bash
-# Build portfolio image
-docker build -t portfolio:latest ./portfolio
-
-# Build blog image
-docker build -t blog:latest ./blog
-
-# Run portfolio on port 8080
-docker run -d --name portfolio_app -p 8080:80 \
-  -v $(pwd)/portfolio:/usr/share/nginx/html:ro \
-  -v $(pwd)/portfolio/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
-  -v $(pwd)/logs/portfolio:/var/log/nginx \
-  portfolio:latest
-
-# Run blog on port 8081
-docker run -d --name blog_app -p 8081:80 \
-  -v $(pwd)/blog:/usr/share/nginx/html:ro \
-  -v $(pwd)/blog/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
-  -v $(pwd)/logs/blog:/var/log/nginx \
-  blog:latest
-```
-
-### 2. Deploy Nginx Proxy Manager
-
-```bash
-cd gateway
-docker compose -f docker-compose.proxy-manager.yml up -d
-```
-
-Access the admin UI at `http://localhost:81`
-
-Default credentials:
-- Email: `admin@example.com`
-- Password: `changeme`
-
-### 3. Add proxy hosts in the UI
-
-1. Go to **Proxy Hosts** → **Add Proxy Host**
-2. For portfolio:
-   - Domain: `localhost` (or your domain)
-   - Forward to: `127.0.0.1:8080`
-3. For blog:
-   - Domain: `blog.localhost` (or `blog.your-domain.com`)
-   - Forward to: `127.0.0.1:8081`
-
----
-
-## Production deployment
-
-For production with real domains:
-
-1. Update DNS:
-   - `portfolio.example.com` → your server IP
-   - `blog.example.com` → your server IP
-
-2. Use the Nginx Proxy Manager UI to add proxy hosts:
-   - Enable SSL (Let's Encrypt auto-renewal)
-   - Set appropriate domain names
-
-3. Ship logs to Grafana Cloud for monitoring
-
-4. Set up CI/CD pipelines for each service:
-   - Separate pipelines for portfolio, blog, monitoring
-   - No downtime when updating one service
-
+- Replace placeholder GitHub and LinkedIn links in the HTML files with real profile URLs.
+- Do not commit real AWS credentials.
+- Remove `.DS_Store` files before publishing the repo if you want a cleaner history.

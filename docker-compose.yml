@@ -15,7 +15,7 @@ services:
       DB_MYSQL_HOST: db
       DB_MYSQL_PORT: 3306
       DB_MYSQL_USER: npm
-      DB_MYSQL_PASSWORD: npm
+      DB_MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm}
       DB_MYSQL_NAME: npm
       DISABLE_IPV6: 'true'
     volumes:
@@ -32,10 +32,10 @@ services:
     networks:
       - gateway_default
     environment:
-      MYSQL_ROOT_PASSWORD: npm
+      MYSQL_ROOT_PASSWORD: ${NPM_DB_ROOT_PASSWORD:-npm}
       MYSQL_DATABASE: npm
       MYSQL_USER: npm
-      MYSQL_PASSWORD: npm
+      MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm}
     volumes:
       - npm_db:/var/lib/mysql:rw
     restart: unless-stopped
@@ -49,6 +49,8 @@ services:
       - gateway_default
     expose:
       - "80"
+    depends_on:
+      - contact_service
     restart: unless-stopped
 
   # Experience Service
@@ -93,20 +95,13 @@ services:
       - gateway_default
     expose:
       - "3000"
-    environment:
-      AWS_REGION: ${AWS_REGION:-ap-south-1}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-placeholder}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-placeholder}
-      SES_FROM_EMAIL: ${SES_FROM_EMAIL:-noreply@example.com}
-      SES_TO_EMAIL: ${SES_TO_EMAIL:-contact@example.com}
-      PORT: 3000
-      NODE_ENV: ${NODE_ENV:-production}
+    env_file:
+      - ./contact/.env
     restart: unless-stopped
-    depends_on:
-      - npm
 
 networks:
   gateway_default:
+    name: gateway_default
     driver: bridge
 
 volumes:

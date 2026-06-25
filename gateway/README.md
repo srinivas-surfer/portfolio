@@ -1,77 +1,48 @@
-# Nginx Proxy Manager Setup
+# Nginx Proxy Manager Gateway
 
-This directory contains the Nginx Proxy Manager configuration for managing all reverse proxy routes.
+This folder contains a standalone Nginx Proxy Manager compose file. For normal local development, prefer the root `docker-compose.yml` because it starts the gateway, database, static services, and contact API together.
 
-## Quick start
+## Standalone Gateway
 
-### Deploy
 ```bash
 cd gateway
 docker compose -f docker-compose.proxy-manager.yml up -d
 ```
 
-Nginx Proxy Manager will:
-- Listen on port `80` (HTTP)
-- Listen on port `443` (HTTPS)
-- Provide admin UI on port `81`
+Admin UI:
 
-### Access the admin UI
-1. Open `http://localhost:81`
-2. Login with default credentials:
-   - Email: `admin@example.com`
-   - Password: `changeme`
-3. Change password immediately after first login
+```text
+http://localhost:81
+```
 
----
+Default first-login credentials:
 
-## Add a proxy host
+```text
+Email: admin@example.com
+Password: changeme
+```
 
-### Example: Add portfolio service
+Change the password immediately after first login.
 
-1. In the UI, go to **Proxy Hosts** → **Add Proxy Host**
-2. Fill in:
-   - Domain: `portfolio.example.com`
-   - Scheme: `http`
-   - Forward Hostname/IP: `127.0.0.1` (or `portfolio_app` if using Docker networking)
-   - Forward Port: `8080`
-3. Go to **SSL** tab:
-   - Enable **SSL**
-   - Request new SSL Certificate
-   - Enter your email
-   - Accept Terms
-4. Click **Save**
+## Shared Network
 
-### Repeat for blog service
-- Domain: `blog.example.com`
-- Forward to: `127.0.0.1:8081`
+The standalone compose file uses the explicit Docker network name `gateway_default`. This matches the root compose file and allows separately launched services to join the same network.
 
-### For future services
-- Add new proxy host for each new service
-- Same process: domain → forward to internal IP:port → enable SSL
+## Proxy Hosts
 
----
+When the full stack is running, add these proxy hosts:
 
-## Notes
+| Domain | Forward Host | Forward Port |
+| --- | --- | --- |
+| `portfolio.localhost` | `portfolio_service` | `80` |
+| `experience.localhost` | `experience_service` | `80` |
+| `projects.localhost` | `projects_service` | `80` |
+| `blog.localhost` | `blog_service` | `80` |
 
-- All SSL certificates are automatically managed by Let's Encrypt
-- Certificates renew automatically
-- Each proxy host logs requests through Nginx Proxy Manager
-- Add labels in Nginx Proxy Manager to organize proxy hosts
+The contact API is not exposed as a separate public host by default. `portfolio_service` proxies `/api/contact` to `contact_service:3000`.
 
----
+## Production Notes
 
-## Access logs for Grafana
-
-Nginx Proxy Manager forwards requests through its Nginx instance. Logs can be shipped to Grafana Cloud Loki via:
-
-1. Mount a logs volume from the container:
-   ```yaml
-   volumes:
-     - ./logs:/var/log/npm
-   ```
-
-2. Configure Promtail to read `/var/log/npm/access.log`
-
-3. Add labels: `service=gateway` or `service=npm`
-
-This way, Grafana Cloud can see all reverse proxy traffic.
+- Enable Let's Encrypt certificates for public domains.
+- Restrict access to port `81` by firewall/security group rules.
+- Persist the `npm_data`, `npm_letsencrypt`, and `npm_db` volumes.

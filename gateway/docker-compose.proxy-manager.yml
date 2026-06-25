@@ -13,7 +13,7 @@ services:
       DB_MYSQL_HOST: db
       DB_MYSQL_PORT: 3306
       DB_MYSQL_USER: npm
-      DB_MYSQL_PASSWORD: npm_password
+      DB_MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm}
       DB_MYSQL_NAME: npm
       NGINX_PROXY_MANAGER_DEBUG: 'false'
     volumes:
@@ -21,18 +21,27 @@ services:
       - npm_letsencrypt:/etc/letsencrypt
     depends_on:
       - db
+    networks:
+      - gateway_default
 
   db:
     image: 'jc21/mariadb-aria:latest'
     container_name: npm_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: npm_root_password
+      MYSQL_ROOT_PASSWORD: ${NPM_DB_ROOT_PASSWORD:-npm}
       MYSQL_DATABASE: npm
       MYSQL_USER: npm
-      MYSQL_PASSWORD: npm_password
+      MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm}
     volumes:
       - npm_db:/var/lib/mysql
+    networks:
+      - gateway_default
+
+networks:
+  gateway_default:
+    name: gateway_default
+    driver: bridge
 
 volumes:
   npm_data:

@@ -4,8 +4,21 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+app.use(express.json({ limit: '20kb' }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  }
+}));
 
 // Configure AWS SES
 const ses = new aws.SES({
@@ -16,10 +29,17 @@ const ses = new aws.SES({
 
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {
-  const { name, email, company, message } = req.body;
+  const name = String(req.body.name || '').trim();
+  const email = String(req.body.email || '').trim();
+  const company = String(req.body.company || '').trim();
+  const message = String(req.body.message || '').trim();
 
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address' });
   }
 
   const params = {
@@ -72,7 +92,7 @@ function escapeHtml(text) {
     '"': '&quot;',
     "'": '&#039;'
   };
-  return text.replace(/[&<>"']/g, m => map[m]);
+  return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
 const PORT = process.env.PORT || 3000;
