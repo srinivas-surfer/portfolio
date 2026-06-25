@@ -86,7 +86,7 @@ services:
       - "80"
     restart: unless-stopped
 
-  # Contact Service (Node.js Backend with AWS SES)
+  # Contact Service (Node.js Backend with Amazon SES SMTP)
   contact_service:
     build: ./contact
     image: contact-service:latest
