@@ -359,3 +359,78 @@ If SES rejects the message after this point, the next error will likely be one o
 - recipient email not verified while SES is in sandbox
 - wrong SES SMTP username or password
 - SMTP region mismatch between credentials and `SMTP_HOST`
+
+#3
+
+grep -nE '^(SMTP_HOST|SMTP_PORT|SMTP_SECURE|SMTP_USER|SMTP_PASS|SES_FROM_EMAIL|SES_TO_EMAIL|CORS_ORIGIN|PORT|NODE_ENV)=' contact/.env
+1:SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+2:SMTP_PORT=587
+3:SMTP_SECURE=false
+4:SMTP_USER=AKIAUR6GOBCWATT7IL6X
+5:SMTP_PASS=BOwyRyQDt+eSDaZCdvhU8pOLSe8uQ91cYfBdegJrjZys
+6:SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
+7:SES_TO_EMAIL=portfolio.mentee.com
+8:CORS_ORIGIN=http://portfolio.localhost
+9:PORT=3000
+10:NODE_ENV=production
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker compose up -d --build --force-recreate contact_service portfolio_service
+WARN[0000] Docker Compose is configured to build using Bake, but buildx isn't installed 
+[+] Building 0.3s (21/21) FINISHED                                                                                                                                     docker:default
+ => [contact_service internal] load build definition from Dockerfile                                                                                                             0.0s
+ => => transferring dockerfile: 196B                                                                                                                                             0.0s
+ => [contact_service internal] load metadata for docker.io/library/node:18-alpine                                                                                                0.0s
+ => [contact_service internal] load .dockerignore                                                                                                                                0.0s
+ => => transferring context: 2B                                                                                                                                                  0.0s
+ => [contact_service 1/5] FROM docker.io/library/node:18-alpine                                                                                                                  0.0s
+ => [contact_service internal] load build context                                                                                                                                0.0s
+ => => transferring context: 63B                                                                                                                                                 0.0s
+ => CACHED [contact_service 2/5] WORKDIR /app                                                                                                                                    0.0s
+ => CACHED [contact_service 3/5] COPY package.json package-lock.json* ./                                                                                                         0.0s
+ => CACHED [contact_service 4/5] RUN npm install --production                                                                                                                    0.0s
+ => CACHED [contact_service 5/5] COPY server.js .                                                                                                                                0.0s
+ => [contact_service] exporting to image                                                                                                                                         0.0s
+ => => exporting layers                                                                                                                                                          0.0s
+ => => writing image sha256:de288717d4b7c2805d2c982a9544b46d6f177ff233c2a040eca641149e563b25                                                                                     0.0s
+ => => naming to docker.io/library/contact-service:latest                                                                                                                        0.0s
+ => [contact_service] resolving provenance for metadata file                                                                                                                     0.0s
+ => [portfolio_service internal] load build definition from Dockerfile                                                                                                           0.0s
+ => => transferring dockerfile: 193B                                                                                                                                             0.0s
+ => [portfolio_service internal] load metadata for docker.io/library/nginx:alpine                                                                                                0.0s
+ => [portfolio_service internal] load .dockerignore                                                                                                                              0.0s
+ => => transferring context: 2B                                                                                                                                                  0.0s
+ => [portfolio_service internal] load build context                                                                                                                              0.0s
+ => => transferring context: 441B                                                                                                                                                0.0s
+ => [portfolio_service 1/4] FROM docker.io/library/nginx:alpine                                                                                                                  0.0s
+ => CACHED [portfolio_service 2/4] COPY . /usr/share/nginx/html                                                                                                                  0.0s
+ => CACHED [portfolio_service 3/4] COPY nginx-main.conf /etc/nginx/nginx.conf                                                                                                    0.0s
+ => CACHED [portfolio_service 4/4] COPY nginx-server.conf /etc/nginx/conf.d/default.conf                                                                                         0.0s
+ => [portfolio_service] exporting to image                                                                                                                                       0.0s
+ => => exporting layers                                                                                                                                                          0.0s
+ => => writing image sha256:992ce4e74e4df9b59ea321beda5f8df3b03563c3ab4d7d25652ad12812839c61                                                                                     0.0s
+ => => naming to docker.io/library/portfolio:latest                                                                                                                              0.0s
+ => [portfolio_service] resolving provenance for metadata file                                                                                                                   0.0s
+WARN[0000] a network with name gateway_default exists but was not created for project "portfolio".
+Set `external: true` to use an existing network 
+[+] Running 4/4
+ ✔ contact_service              Built                                                                                                                                            0.0s 
+ ✔ portfolio_service            Built                                                                                                                                            0.0s 
+ ✔ Container contact_service    Started                                                                                                                                          1.5s 
+ ✔ Container portfolio_service  Started                                                                                                                                          0.8s 
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker compose exec contact_service printenv SES_TO_EMAIL
+portfolio.mentee.com
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ ^[[200~docker run --rm --network gateway_default curlimages/curl:latest \
+>   -s -X POST http://contact_service:3000/api/contact \
+>   -H "Content-Type: application/json" \
+> docker compose exec contact_service printenv SES_TO_EMAIL
+docker: command not found
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker run --rm --network gateway_default curlimages/curl:latest \
+  -s -X POST http://contact_service:3000/api/contact \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"portfolio.mentee@outlook.com","message":"SMTP test"}'
+{"error":"Email service is not configured"}mentdocker compose logs -f contact_service
+contact_service  | 
+contact_service  | > contact-service@1.0.0 start
+contact_service  | > node server.js
+contact_service  | 
+contact_service  | Contact service listening on port 3000
+contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
