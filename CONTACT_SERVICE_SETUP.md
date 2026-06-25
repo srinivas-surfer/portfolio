@@ -1,6 +1,6 @@
 # Contact Service Setup
 
-The contact service is a small Express API in `contact/server.js`. It receives portfolio form submissions and sends email through AWS SES.
+The contact service is a small Express API in `contact/server.js`. It receives portfolio form submissions and sends email through Amazon SES SMTP.
 
 ## Endpoints
 
@@ -31,9 +31,11 @@ cp contact/.env.example contact/.env
 Required values:
 
 ```env
-AWS_REGION=ap-south-1
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
+SMTP_HOST=email-smtp.ap-south-1.amazonaws.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-ses-smtp-username
+SMTP_PASS=your-ses-smtp-password
 SES_FROM_EMAIL=verified-sender@example.com
 SES_TO_EMAIL=destination@example.com
 CORS_ORIGIN=http://portfolio.localhost
@@ -41,7 +43,9 @@ PORT=3000
 NODE_ENV=production
 ```
 
-`SES_FROM_EMAIL` must be verified in AWS SES. If the AWS account is still in the SES sandbox, the recipient may also need to be verified.
+Use the SMTP username and password generated from the Amazon SES console for the same region as `SMTP_HOST`. These are not the same as normal AWS access keys.
+
+`SES_FROM_EMAIL` must be verified in Amazon SES. If the AWS account is still in the SES sandbox, the recipient may also need to be verified.
 
 ## Request Flow
 
@@ -51,7 +55,7 @@ Browser
   -> POST http://portfolio.localhost/api/contact
   -> portfolio_service Nginx
   -> contact_service:3000/api/contact
-  -> AWS SES
+  -> Amazon SES SMTP
 ```
 
 The portfolio service owns the `/api/contact` proxy in `portfolio/nginx-server.conf`.
@@ -86,7 +90,7 @@ docker compose logs -f contact_service
 
 ## Security Notes
 
-- Keep AWS credentials in environment variables or a secret manager, not in source control.
+- Keep SES SMTP credentials in environment variables or a secret manager, not in source control.
 - Restrict `CORS_ORIGIN` to the production portfolio origin.
 - Add rate limiting at Nginx Proxy Manager or in the Express app before exposing the form publicly.
 - Rotate AWS access keys periodically.

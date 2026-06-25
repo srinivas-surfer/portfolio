@@ -41,7 +41,7 @@ cp contact/.env.example contact/.env
 docker compose up -d --build
 ```
 
-Set real AWS SES values in `contact/.env` before testing real email delivery.
+Set real Amazon SES SMTP values in `contact/.env` before testing real email delivery.
 Copy `.env.example` to `.env` only when you want to override the Nginx Proxy Manager database password defaults.
 
 ## Check
@@ -86,7 +86,7 @@ docker compose down -v
 
 ## Deployment Checklist
 
-- [ ] Set real AWS SES values in `contact/.env` or production environment variables.
+- [ ] Set real Amazon SES SMTP values in `contact/.env` or production environment variables.
 - [ ] Configure Nginx Proxy Manager proxy hosts.
 - [ ] Change the default Nginx Proxy Manager admin password.
 - [ ] Restrict port `81` to trusted IP ranges.

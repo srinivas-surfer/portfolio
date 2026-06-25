@@ -6,7 +6,7 @@ Dockerized portfolio site split into small services:
 - `experience/` - career and experience page
 - `projects/` - project showcase
 - `blog/` - blog listing and posts
-- `contact/` - Node.js contact API using AWS SES
+- `contact/` - Node.js contact API using Amazon SES SMTP
 - `gateway/` - optional standalone Nginx Proxy Manager setup
 - `terraform/` - AWS EC2 host provisioning
 
@@ -40,7 +40,7 @@ Create a contact environment file:
 cp contact/.env.example contact/.env
 ```
 
-Set real AWS SES values in `contact/.env` when you want the contact form to send email.
+Set real Amazon SES SMTP values in `contact/.env` when you want the contact form to send email.
 
 Optional: copy `.env.example` to `.env` if you want to override the local Nginx Proxy Manager database password defaults.
 
@@ -127,5 +127,5 @@ The EC2 user data installs Docker and Docker Compose. It does not copy this repo
 ## Notes
 
 - Replace placeholder GitHub and LinkedIn links in the HTML files with real profile URLs.
-- Do not commit real AWS credentials.
+- Do not commit real SES SMTP credentials.
 - Remove `.DS_Store` files before publishing the repo if you want a cleaner history.

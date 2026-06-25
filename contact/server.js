@@ -1,5 +1,5 @@
 const express = require('express');
-const aws = require('aws-sdk');
+const nodemailer = require('nodemailer');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -8,6 +8,20 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
+
+const smtpPort = Number(process.env.SMTP_PORT || 587);
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'email-smtp.ap-south-1.amazonaws.com',
+  port: smtpPort,
+  secure: process.env.SMTP_SECURE === 'true',
+  requireTLS: smtpPort !== 465,
+  auth: process.env.SMTP_USER && process.env.SMTP_PASS
+    ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    : undefined
+});
 
 app.use(express.json({ limit: '20kb' }));
 app.use(cors({
@@ -20,14 +34,6 @@ app.use(cors({
   }
 }));
 
-// Configure AWS SES
-const ses = new aws.SES({
-  region: process.env.AWS_REGION || 'ap-south-1',
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-});
-
-// Contact form endpoint
 app.post('/api/contact', async (req, res) => {
   const name = String(req.body.name || '').trim();
   const email = String(req.body.email || '').trim();
@@ -42,48 +48,52 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Invalid email address' });
   }
 
-  const params = {
-    Source: process.env.SES_FROM_EMAIL || 'noreply@example.com',
-    Destination: {
-      ToAddresses: [process.env.SES_TO_EMAIL || 'contact@example.com']
-    },
-    Message: {
-      Subject: {
-        Data: `New Opportunity Inquiry from ${name}`,
-        Charset: 'UTF-8'
-      },
-      Body: {
-        Html: {
-          Data: `
-            <h2>New Contact Form Submission</h2>
-            <p><strong>Name:</strong> ${escapeHtml(name)}</p>
-            <p><strong>Email:</strong> ${escapeHtml(email)}</p>
-            <p><strong>Company:</strong> ${escapeHtml(company || 'Not provided')}</p>
-            <p><strong>Message:</strong></p>
-            <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
-          `,
-          Charset: 'UTF-8'
-        }
-      }
-    }
-  };
+  const configError = validateMailConfig();
+  if (configError) {
+    console.error(`SMTP configuration error: ${configError}`);
+    return res.status(500).json({ error: 'Email service is not configured' });
+  }
+
+  const html = `
+    <h2>New Contact Form Submission</h2>
+    <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+    <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+    <p><strong>Company:</strong> ${escapeHtml(company || 'Not provided')}</p>
+    <p><strong>Message:</strong></p>
+    <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
+  `;
 
   try {
-    await ses.sendEmail(params).promise();
+    await transporter.sendMail({
+      from: process.env.SES_FROM_EMAIL,
+      to: process.env.SES_TO_EMAIL,
+      replyTo: email,
+      subject: `New Opportunity Inquiry from ${sanitizeHeader(name)}`,
+      html
+    });
+
     console.log(`[${new Date().toISOString()}] Message sent from ${email}`);
     res.status(200).json({ success: true, message: 'Email sent successfully' });
   } catch (error) {
-    console.error('SES Error:', error);
+    console.error('SES SMTP Error:', error);
     res.status(500).json({ error: 'Failed to send email' });
   }
 });
 
-// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Escape HTML to prevent XSS
+function validateMailConfig() {
+  const required = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'SES_FROM_EMAIL', 'SES_TO_EMAIL'];
+  const missing = required.filter(key => !process.env[key]);
+  return missing.length > 0 ? `Missing ${missing.join(', ')}` : '';
+}
+
+function sanitizeHeader(text) {
+  return String(text).replace(/[\r\n]/g, ' ').trim();
+}
+
 function escapeHtml(text) {
   const map = {
     '&': '&amp;',
