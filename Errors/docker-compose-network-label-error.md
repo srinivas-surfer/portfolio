@@ -195,3 +195,30 @@ Expected response:
 ```json
 {"status":"ok"}
 ```
+
+### Applied Update
+
+The repo has been updated with the compose-network fix:
+
+- Removed obsolete top-level `version` from `docker-compose.yml`.
+- Removed obsolete top-level `version` from `gateway/docker-compose.proxy-manager.yml`.
+- Changed both compose files to use the Compose `default` network while preserving the Docker network name `gateway_default`.
+
+Current network definition:
+
+```yaml
+networks:
+  default:
+    name: gateway_default
+    driver: bridge
+```
+
+This matches the network label from the Linux host error and prevents Docker Compose from expecting a different label.
+
+If the host still has the old network state cached, run this once:
+
+```bash
+docker compose down
+docker network rm gateway_default
+docker compose up -d --build
+```

@@ -8,6 +8,7 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const transporter = nodemailer.createTransport({
@@ -44,7 +45,7 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!emailPattern.test(email)) {
     return res.status(400).json({ error: 'Invalid email address' });
   }
 
@@ -66,7 +67,7 @@ app.post('/api/contact', async (req, res) => {
   try {
     await transporter.sendMail({
       from: process.env.SES_FROM_EMAIL,
-      to: process.env.SES_TO_EMAIL,
+      to: getRecipients(),
       replyTo: email,
       subject: `New Opportunity Inquiry from ${sanitizeHeader(name)}`,
       html
@@ -87,7 +88,27 @@ app.get('/health', (req, res) => {
 function validateMailConfig() {
   const required = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'SES_FROM_EMAIL', 'SES_TO_EMAIL'];
   const missing = required.filter(key => !process.env[key]);
-  return missing.length > 0 ? `Missing ${missing.join(', ')}` : '';
+  if (missing.length > 0) {
+    return `Missing ${missing.join(', ')}`;
+  }
+
+  if (!emailPattern.test(process.env.SES_FROM_EMAIL)) {
+    return 'SES_FROM_EMAIL must be a valid email address';
+  }
+
+  const recipients = getRecipients();
+  if (recipients.length === 0) {
+    return 'SES_TO_EMAIL must contain at least one valid email address';
+  }
+
+  return '';
+}
+
+function getRecipients() {
+  return String(process.env.SES_TO_EMAIL || '')
+    .split(',')
+    .map(emailAddress => emailAddress.trim())
+    .filter(emailAddress => emailPattern.test(emailAddress));
 }
 
 function sanitizeHeader(text) {

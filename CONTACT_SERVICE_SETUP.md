@@ -36,8 +36,8 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-ses-smtp-username
 SMTP_PASS=your-ses-smtp-password
-SES_FROM_EMAIL=verified-sender@example.com
-SES_TO_EMAIL=destination@example.com
+SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
+SES_TO_EMAIL=portfolio.mentee@outlook.com
 CORS_ORIGIN=http://portfolio.localhost
 PORT=3000
 NODE_ENV=production
@@ -46,6 +46,12 @@ NODE_ENV=production
 Use the SMTP username and password generated from the Amazon SES console for the same region as `SMTP_HOST`. These are not the same as normal AWS access keys.
 
 `SES_FROM_EMAIL` must be verified in Amazon SES. If the AWS account is still in the SES sandbox, the recipient may also need to be verified.
+
+`SES_TO_EMAIL` must be a full email address, not only a domain name. For multiple recipients, use comma-separated email addresses:
+
+```env
+SES_TO_EMAIL=portfolio.mentee@outlook.com,second@example.com
+```
 
 ## Request Flow
 

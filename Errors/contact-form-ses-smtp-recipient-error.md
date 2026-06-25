@@ -55,3 +55,133 @@ mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker run --rm --network gateway
   -d '{"name":"Test User","email":"test@example.com","message":"SMTP test"}'
 {"error":"Failed to send email"}m
 
+## Solution
+
+### Root Cause
+
+The contact form reached the backend correctly:
+
+```text
+POST /api/contact -> 500
+```
+
+The portfolio Nginx proxy also worked correctly because the request reached `contact_service`.
+
+The real failure is in the contact service SMTP send:
+
+```text
+SES SMTP Error: Error: No recipients defined
+code: 'EENVELOPE'
+```
+
+This means Nodemailer did not receive a valid `to` recipient. The usual cause is one of these:
+
+- `SES_TO_EMAIL` is missing in `contact/.env`.
+- `SES_TO_EMAIL` is blank.
+- `SES_TO_EMAIL` is set to a domain instead of a full email address, for example `portfolio.mentee.com`.
+
+`SES_TO_EMAIL` must be a full email address:
+
+```env
+SES_TO_EMAIL=name@example.com
+```
+
+If your SES account is still in sandbox mode, this recipient email must also be verified in Amazon SES.
+
+### Repo Fix Applied
+
+Updated `contact/server.js` so the service validates email configuration before calling SMTP:
+
+- `SES_FROM_EMAIL` must be a valid email address.
+- `SES_TO_EMAIL` must contain at least one valid email address.
+- Multiple recipients are supported with comma-separated values.
+
+If the config is wrong now, the service logs a clear message like:
+
+```text
+SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+```
+
+### Linux Fix
+
+Edit the runtime env file:
+
+```bash
+nano contact/.env
+```
+
+Use values like:
+
+```env
+SMTP_HOST=email-smtp.ap-south-1.amazonaws.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-ses-smtp-username
+SMTP_PASS=your-ses-smtp-password
+SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
+SES_TO_EMAIL=portfolio.mentee@outlook.com
+CORS_ORIGIN=http://portfolio.localhost
+PORT=3000
+NODE_ENV=production
+```
+
+Then rebuild and restart:
+
+```bash
+docker compose up -d --build contact_service portfolio_service
+```
+
+Watch logs:
+
+```bash
+docker compose logs -f contact_service
+```
+
+Test directly:
+
+```bash
+docker run --rm --network gateway_default curlimages/curl:latest \
+  -s -X POST http://contact_service:3000/api/contact \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@example.com","message":"SMTP test"}'
+```
+
+Expected success:
+
+```json
+{"success":true,"message":"Email sent successfully"}
+```
+
+If the response is:
+
+```json
+{"error":"Email service is not configured"}
+```
+
+then check `docker compose logs -f contact_service` for the exact missing or invalid environment variable.
+
+### Applied Update
+
+The repo has been updated with the final contact mail values we decided to use:
+
+```env
+SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
+SES_TO_EMAIL=portfolio.mentee@outlook.com
+```
+
+Updated files:
+
+- `contact/.env`
+- `contact/.env.example`
+- `CONTACT_SERVICE_SETUP.md`
+- `validation/service-health-and-nginx-manager.md`
+- `Errors/contact-form-ses-smtp-recipient-error.md`
+
+`contact/server.js` was also updated to validate SMTP email configuration before sending. If `SES_TO_EMAIL` is invalid or missing, the service now returns a configuration error instead of reaching Nodemailer with `No recipients defined`.
+
+Before running in production, make sure:
+
+- `no-reply@srinivaspitchubabu.click` is verified in Amazon SES.
+- `portfolio.mentee@outlook.com` is verified too if the SES account is still in sandbox mode.
+- `SMTP_USER` and `SMTP_PASS` in `contact/.env` contain real SES SMTP credentials.
+

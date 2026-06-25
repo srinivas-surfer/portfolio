@@ -190,9 +190,11 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-ses-smtp-username
 SMTP_PASS=your-ses-smtp-password
-SES_FROM_EMAIL=verified-sender@example.com
-SES_TO_EMAIL=destination@example.com
+SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
+SES_TO_EMAIL=portfolio.mentee@outlook.com
 CORS_ORIGIN=http://portfolio.localhost
 PORT=3000
 NODE_ENV=production
 ```
+
+`SES_TO_EMAIL` must be a full email address such as `name@example.com`, not only a domain.
