@@ -186,7 +186,7 @@ Before running in production, make sure:
 - `SMTP_USER` and `SMTP_PASS` in `contact/.env` contain real SES SMTP credentials.
 
 
-#2 no fix
+## Follow-up Error 2
 
 mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker compose up -d --build contact_service portfolio_service
 WARN[0000] Docker Compose is configured to build using Bake, but buildx isn't installed 
@@ -271,3 +271,91 @@ portfolio_service  | {"time":"2026-06-25T13:11:17+00:00","remote_addr":"172.19.0
 [7]+  Stopped                 docker compose logs -f portfolio_service
 mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker run --rm --network gateway_default curlimages/curl:latest   -s -X POST http://contact_service:3000/api/contact   -H "Content-Type: application/json"   -d '{"name":"Test User","email":"portfolio.mentee@outlook.com","message":"SMTP test"}'
 {"error":"Email service is not configured"}mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ 
+
+### Follow-up Root Cause
+
+The second run shows the backend code fix is active, because the old Nodemailer error changed from:
+
+```text
+No recipients defined
+```
+
+to the clearer validation error:
+
+```text
+SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+```
+
+That means `contact_service` is still reading an invalid or old runtime `contact/.env`.
+
+The build output also shows:
+
+```text
+Container contact_service Running
+Container portfolio_service Running
+```
+
+It does not show that the containers were recreated. When only `contact/.env` changes, use `--force-recreate` so Docker Compose starts the contact container with the new environment values.
+
+### Follow-up Solution
+
+On the Linux host, inspect the actual runtime env file:
+
+```bash
+grep -nE '^(SMTP_HOST|SMTP_PORT|SMTP_SECURE|SMTP_USER|SMTP_PASS|SES_FROM_EMAIL|SES_TO_EMAIL|CORS_ORIGIN|PORT|NODE_ENV)=' contact/.env
+```
+
+It must contain:
+
+```env
+SMTP_HOST=email-smtp.ap-south-1.amazonaws.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-real-ses-smtp-username
+SMTP_PASS=your-real-ses-smtp-password
+SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
+SES_TO_EMAIL=portfolio.mentee@outlook.com
+CORS_ORIGIN=http://portfolio.localhost
+PORT=3000
+NODE_ENV=production
+```
+
+Then force recreate the containers that use the contact API:
+
+```bash
+docker compose up -d --build --force-recreate contact_service portfolio_service
+```
+
+Verify the container sees the updated recipient:
+
+```bash
+docker compose exec contact_service printenv SES_TO_EMAIL
+```
+
+Expected:
+
+```text
+portfolio.mentee@outlook.com
+```
+
+Then retest:
+
+```bash
+docker run --rm --network gateway_default curlimages/curl:latest \
+  -s -X POST http://contact_service:3000/api/contact \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@example.com","message":"SMTP test"}'
+```
+
+If SES accepts the message, expected response:
+
+```json
+{"success":true,"message":"Email sent successfully"}
+```
+
+If SES rejects the message after this point, the next error will likely be one of:
+
+- sender email not verified
+- recipient email not verified while SES is in sandbox
+- wrong SES SMTP username or password
+- SMTP region mismatch between credentials and `SMTP_HOST`
