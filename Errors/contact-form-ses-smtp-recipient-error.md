@@ -185,3 +185,89 @@ Before running in production, make sure:
 - `portfolio.mentee@outlook.com` is verified too if the SES account is still in sandbox mode.
 - `SMTP_USER` and `SMTP_PASS` in `contact/.env` contain real SES SMTP credentials.
 
+
+#2 no fix
+
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker compose up -d --build contact_service portfolio_service
+WARN[0000] Docker Compose is configured to build using Bake, but buildx isn't installed 
+[+] Building 0.3s (21/21) FINISHED                                                                                                                                     docker:default
+ => [contact_service internal] load build definition from Dockerfile                                                                                                             0.0s
+ => => transferring dockerfile: 196B                                                                                                                                             0.0s
+ => [contact_service internal] load metadata for docker.io/library/node:18-alpine                                                                                                0.0s
+ => [contact_service internal] load .dockerignore                                                                                                                                0.0s
+ => => transferring context: 2B                                                                                                                                                  0.0s
+ => [contact_service 1/5] FROM docker.io/library/node:18-alpine                                                                                                                  0.0s
+ => [contact_service internal] load build context                                                                                                                                0.0s
+ => => transferring context: 63B                                                                                                                                                 0.0s
+ => CACHED [contact_service 2/5] WORKDIR /app                                                                                                                                    0.0s
+ => CACHED [contact_service 3/5] COPY package.json package-lock.json* ./                                                                                                         0.0s
+ => CACHED [contact_service 4/5] RUN npm install --production                                                                                                                    0.0s
+ => CACHED [contact_service 5/5] COPY server.js .                                                                                                                                0.0s
+ => [contact_service] exporting to image                                                                                                                                         0.0s
+ => => exporting layers                                                                                                                                                          0.0s
+ => => writing image sha256:de288717d4b7c2805d2c982a9544b46d6f177ff233c2a040eca641149e563b25                                                                                     0.0s
+ => => naming to docker.io/library/contact-service:latest                                                                                                                        0.0s
+ => [contact_service] resolving provenance for metadata file                                                                                                                     0.0s
+ => [portfolio_service internal] load build definition from Dockerfile                                                                                                           0.0s
+ => => transferring dockerfile: 193B                                                                                                                                             0.0s
+ => [portfolio_service internal] load metadata for docker.io/library/nginx:alpine                                                                                                0.0s
+ => [portfolio_service internal] load .dockerignore                                                                                                                              0.0s
+ => => transferring context: 2B                                                                                                                                                  0.0s
+ => [portfolio_service 1/4] FROM docker.io/library/nginx:alpine                                                                                                                  0.0s
+ => [portfolio_service internal] load build context                                                                                                                              0.0s
+ => => transferring context: 441B                                                                                                                                                0.0s
+ => CACHED [portfolio_service 2/4] COPY . /usr/share/nginx/html                                                                                                                  0.0s
+ => CACHED [portfolio_service 3/4] COPY nginx-main.conf /etc/nginx/nginx.conf                                                                                                    0.0s
+ => CACHED [portfolio_service 4/4] COPY nginx-server.conf /etc/nginx/conf.d/default.conf                                                                                         0.0s
+ => [portfolio_service] exporting to image                                                                                                                                       0.0s
+ => => exporting layers                                                                                                                                                          0.0s
+ => => writing image sha256:992ce4e74e4df9b59ea321beda5f8df3b03563c3ab4d7d25652ad12812839c61                                                                                     0.0s
+ => => naming to docker.io/library/portfolio:latest                                                                                                                              0.0s
+ => [portfolio_service] resolving provenance for metadata file                                                                                                                   0.0s
+WARN[0000] a network with name gateway_default exists but was not created for project "portfolio".
+Set `external: true` to use an existing network 
+[+] Running 4/4
+ ✔ contact_service              Built                                                                                                                                            0.0s 
+ ✔ portfolio_service            Built                                                                                                                                            0.0s 
+ ✔ Container contact_service    Running                                                                                                                                          0.0s 
+ ✔ Container portfolio_service  Running                                                                                                                                          0.0s 
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker compose logs -f contact_service
+contact_service  | 
+contact_service  | > contact-service@1.0.0 start
+contact_service  | > node server.js
+contact_service  | 
+contact_service  | Contact service listening on port 3000
+contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+^[[A^[[A^Z
+[6]+  Stopped                 docker compose logs -f contact_service
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker compose logs -f portfolio_service
+portfolio_service  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+portfolio_service  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+portfolio_service  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+portfolio_service  | 10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+portfolio_service  | 10-listen-on-ipv6-by-default.sh: info: /etc/nginx/conf.d/default.conf differs from the packaged version
+portfolio_service  | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+portfolio_service  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+portfolio_service  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+portfolio_service  | /docker-entrypoint.sh: Configuration complete; ready for start up
+portfolio_service  | {"time":"2026-06-25T12:47:43+00:00","remote_addr":"172.19.0.9","client_ip":"","user":"","host":"portfolio_service","request_method":"GET","request_uri":"/","request_protocol":"HTTP/1.1","status":"200","body_bytes_sent":"5780","request_time":"0.000","upstream_response_time":"","http_referer":"","http_user_agent":"curl/8.21.0"}
+portfolio_service  | {"time":"2026-06-25T12:51:58+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/","request_protocol":"HTTP/1.1","status":"200","body_bytes_sent":"5780","request_time":"0.000","upstream_response_time":"","http_referer":"http://localhost:81/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T12:51:58+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/style.css","request_protocol":"HTTP/1.1","status":"200","body_bytes_sent":"2732","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T12:51:58+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/script.js","request_protocol":"HTTP/1.1","status":"200","body_bytes_sent":"1101","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T12:51:58+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/assets/icons/github.svg","request_protocol":"HTTP/1.1","status":"304","body_bytes_sent":"0","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T12:51:58+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/assets/icons/linkedin.svg","request_protocol":"HTTP/1.1","status":"304","body_bytes_sent":"0","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T12:51:58+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/assets/icons/mail.svg","request_protocol":"HTTP/1.1","status":"304","body_bytes_sent":"0","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T12:52:13+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/contact.html","request_protocol":"HTTP/1.1","status":"200","body_bytes_sent":"4240","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T12:52:50+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"POST","request_uri":"/api/contact","request_protocol":"HTTP/1.1","status":"500","body_bytes_sent":"32","request_time":"2.964","upstream_response_time":"2.965","http_referer":"http://portfolio.localhost/contact.html","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T13:10:16+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/","request_protocol":"HTTP/1.1","status":"304","body_bytes_sent":"0","request_time":"0.000","upstream_response_time":"","http_referer":"http://localhost:81/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T13:10:16+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/script.js","request_protocol":"HTTP/1.1","status":"304","body_bytes_sent":"0","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T13:10:16+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/style.css","request_protocol":"HTTP/1.1","status":"304","body_bytes_sent":"0","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T13:10:23+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"GET","request_uri":"/contact.html","request_protocol":"HTTP/1.1","status":"304","body_bytes_sent":"0","request_time":"0.000","upstream_response_time":"","http_referer":"http://portfolio.localhost/","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+portfolio_service  | {"time":"2026-06-25T13:11:17+00:00","remote_addr":"172.19.0.7","client_ip":"172.19.0.1","user":"","host":"portfolio.localhost","request_method":"POST","request_uri":"/api/contact","request_protocol":"HTTP/1.1","status":"500","body_bytes_sent":"43","request_time":"0.051","upstream_response_time":"0.051","http_referer":"http://portfolio.localhost/contact.html","http_user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"}
+^[[A^Z
+[7]+  Stopped                 docker compose logs -f portfolio_service
+mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ docker run --rm --network gateway_default curlimages/curl:latest   -s -X POST http://contact_service:3000/api/contact   -H "Content-Type: application/json"   -d '{"name":"Test User","email":"portfolio.mentee@outlook.com","message":"SMTP test"}'
+{"error":"Email service is not configured"}mentee@mentees-ubuntu:~/Desktop/Git/portfolio$ 
