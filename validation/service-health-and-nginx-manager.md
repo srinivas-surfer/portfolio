@@ -150,6 +150,22 @@ docker compose logs -f contact_service
 docker compose logs -f portfolio_service
 ```
 
+Before testing mail delivery, confirm the running container has the expected SES settings:
+
+```bash
+docker compose exec contact_service printenv SMTP_HOST
+docker compose exec contact_service printenv SES_FROM_EMAIL
+docker compose exec contact_service printenv SES_TO_EMAIL
+```
+
+Expected:
+
+```text
+email-smtp.ap-south-1.amazonaws.com
+no-reply@srinivaspitchubabu.click
+portfolio.mentee@outlook.com
+```
+
 ## 9. Direct Contact API Test
 
 ```bash

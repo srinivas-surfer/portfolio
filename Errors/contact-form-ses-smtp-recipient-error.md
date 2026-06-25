@@ -117,7 +117,7 @@ SMTP_HOST=email-smtp.ap-south-1.amazonaws.com
 SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-ses-smtp-username
-SMTP_PASS=your-ses-smtp-password
+SMTP_PASS=your-real-ses-smtp-password
 SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
 SES_TO_EMAIL=portfolio.mentee@outlook.com
 CORS_ORIGIN=http://portfolio.localhost
@@ -238,6 +238,104 @@ contact_service  | > node server.js
 contact_service  | 
 contact_service  | Contact service listening on port 3000
 contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+
+## Follow-up Error 3
+
+### Root Cause
+
+The latest Linux check shows the runtime environment is still wrong:
+
+```text
+SES_TO_EMAIL=portfolio.mentee.com
+```
+
+That is a domain, not an email address. The contact service correctly rejects it with:
+
+```text
+SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+```
+
+There is also a region mismatch risk in the same runtime env:
+
+```text
+SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+```
+
+If your SES identity and SMTP credentials were created in Mumbai, use:
+
+```env
+SMTP_HOST=email-smtp.ap-south-1.amazonaws.com
+```
+
+If your SES SMTP credentials were created in `us-east-1`, keep `us-east-1`, but the sender identity must also be verified in that region.
+
+### Solution
+
+Edit the runtime env file on Linux:
+
+```bash
+nano contact/.env
+```
+
+Set the recipient to the full Outlook email address:
+
+```env
+SES_TO_EMAIL=portfolio.mentee@outlook.com
+```
+
+Recommended complete env for the current repo:
+
+```env
+SMTP_HOST=email-smtp.ap-south-1.amazonaws.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-real-ses-smtp-username
+SMTP_PASS=your-real-ses-smtp-password
+SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
+SES_TO_EMAIL=portfolio.mentee@outlook.com
+CORS_ORIGIN=http://portfolio.localhost
+PORT=3000
+NODE_ENV=production
+```
+
+Apply the new env by recreating the container:
+
+```bash
+docker compose up -d --build --force-recreate contact_service portfolio_service
+```
+
+Verify the container sees the corrected values:
+
+```bash
+docker compose exec contact_service printenv SMTP_HOST
+docker compose exec contact_service printenv SES_FROM_EMAIL
+docker compose exec contact_service printenv SES_TO_EMAIL
+```
+
+Expected:
+
+```text
+email-smtp.ap-south-1.amazonaws.com
+no-reply@srinivaspitchubabu.click
+portfolio.mentee@outlook.com
+```
+
+Then test:
+
+```bash
+docker run --rm --network gateway_default curlimages/curl:latest \
+  -s -X POST http://contact_service:3000/api/contact \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@example.com","message":"SMTP test"}'
+```
+
+Expected if SES accepts the message:
+
+```json
+{"success":true,"message":"Email sent successfully"}
+```
+
+If it still fails after this, capture the new `contact_service` log. At that point the error should be from SES itself, such as unverified sender, sandbox recipient not verified, wrong SMTP password, or region mismatch.
 contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
 contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
 contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
@@ -366,8 +464,8 @@ grep -nE '^(SMTP_HOST|SMTP_PORT|SMTP_SECURE|SMTP_USER|SMTP_PASS|SES_FROM_EMAIL|S
 1:SMTP_HOST=email-smtp.us-east-1.amazonaws.com
 2:SMTP_PORT=587
 3:SMTP_SECURE=false
-4:SMTP_USER=AKIAUR6GOBCWATT7IL6X
-5:SMTP_PASS=BOwyRyQDt+eSDaZCdvhU8pOLSe8uQ91cYfBdegJrjZys
+4:SMTP_USER=<redacted-ses-smtp-username>
+5:SMTP_PASS=<redacted-ses-smtp-password>
 6:SES_FROM_EMAIL=no-reply@srinivaspitchubabu.click
 7:SES_TO_EMAIL=portfolio.mentee.com
 8:CORS_ORIGIN=http://portfolio.localhost
@@ -434,3 +532,5 @@ contact_service  | > node server.js
 contact_service  | 
 contact_service  | Contact service listening on port 3000
 contact_service  | SMTP configuration error: SES_TO_EMAIL must contain at least one valid email address
+
+
