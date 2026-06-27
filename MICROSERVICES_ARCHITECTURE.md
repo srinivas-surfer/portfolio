@@ -2,7 +2,7 @@
 
 ## Overview
 
-This portfolio is organized as a set of small Docker services. Four services serve static HTML/CSS/JS with Nginx, one service handles contact form email through Amazon SES SMTP, and Nginx Proxy Manager provides the public reverse proxy.
+This portfolio is organized as a set of small Docker services. Four services serve static HTML/CSS/JS with Nginx, one service handles contact form email through Amazon SES SMTP, and AWS CloudFront provides the public edge gateway.
 
 ## Services
 
@@ -13,10 +13,8 @@ This portfolio is organized as a set of small Docker services. Four services ser
 | `projects_service` | `projects/` | Nginx | `80` | Projects page |
 | `blog_service` | `blog/` | Nginx | `80` | Blog listing and posts |
 | `contact_service` | `contact/` | Node.js/Express | `3000` | Contact form API and Amazon SES SMTP integration |
-| `npm` | root compose / `gateway/` | Nginx Proxy Manager | `80`, `81`, `443` | Reverse proxy and TLS management |
-| `db` | root compose / `gateway/` | MariaDB | `3306` | Nginx Proxy Manager database |
 
-All services join a Docker network explicitly named `gateway_default`.
+All services join a Docker network explicitly named `app_default`.
 
 ## Traffic Flow
 
@@ -24,12 +22,16 @@ All services join a Docker network explicitly named `gateway_default`.
 User
   |
   v
-Nginx Proxy Manager
+Route 53
   |
-  +-- portfolio.localhost  -> portfolio_service:80
-  +-- experience.localhost -> experience_service:80
-  +-- projects.localhost   -> projects_service:80
-  +-- blog.localhost       -> blog_service:80
+  v
+CloudFront
+  |
+  v
+EC2 origin port 80
+  |
+  v
+portfolio_service:80
 
 portfolio_service
   |
@@ -40,7 +42,7 @@ The contact API is intentionally private by default. Public traffic reaches it o
 
 ## CI/CD Architecture
 
-CI/CD is currently implemented for `portfolio_service`, gateway services, and `contact_service`.
+CI/CD is currently implemented for `portfolio_service` and `contact_service`.
 
 ```text
 Pull Request
@@ -85,14 +87,7 @@ ${DOCKERHUB_NAMESPACE}/portfolio:${PORTFOLIO_IMAGE_TAG}
 ${DOCKERHUB_NAMESPACE}/contact:${CONTACT_IMAGE_TAG}
 ```
 
-The gateway workflow is separate because it deploys vendor images:
-
-```text
-jc21/mariadb-aria:latest
-jc21/nginx-proxy-manager:latest
-```
-
-It validates host ports `80`, `81`, and `443` before starting `db` and `npm`.
+The old Docker-based gateway is decommissioned during portfolio deployment so `portfolio_service` can bind EC2 host port `80` for CloudFront origin traffic.
 
 ## Static Service Layout
 
@@ -170,14 +165,15 @@ docker compose down
 
 ## Production Notes
 
-- Publish only Nginx Proxy Manager ports `80` and `443` publicly.
-- Restrict Nginx Proxy Manager admin port `81` to trusted IP addresses.
+- Route public DNS through CloudFront.
+- Publish EC2 host port `80` only as the CloudFront origin.
 - Store SES SMTP credentials in a secret manager or runtime environment, not in Git.
-- Configure real domains and Let's Encrypt certificates in Nginx Proxy Manager.
+- Configure the public TLS certificate in ACM `us-east-1` for CloudFront.
+- Disable caching for `/api/contact*` in CloudFront.
 - Replace placeholder social profile URLs before publishing the portfolio.
 
 ## Terraform
 
-The Terraform module provisions a basic EC2 host and network. It opens `80` and `443` publicly, opens `22` based on `ssh_cidr_blocks`, and opens `81` only when `admin_cidr_blocks` is provided.
+The Terraform module provisions a basic EC2 host and network. For the CloudFront-origin model, EC2 should accept inbound `80` from CloudFront origin-facing ranges and administrative access only through a trusted path.
 
 The EC2 user data installs Docker and Docker Compose. It does not deploy this repository automatically.

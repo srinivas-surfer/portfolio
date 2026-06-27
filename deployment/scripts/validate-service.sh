@@ -69,7 +69,7 @@ case "$HEALTH_CHECK_MODE" in
     ;;
   docker-network)
     log "INFO" "Running Docker network health check: $HEALTH_URL"
-    docker run --rm --network "${DOCKER_NETWORK:-gateway_default}" curlimages/curl:latest -fsS "$HEALTH_URL" >/tmp/service-health-response.out
+    docker run --rm --network "${DOCKER_NETWORK:-app_default}" curlimages/curl:latest -fsS "$HEALTH_URL" >/tmp/service-health-response.out
     ;;
   *)
     fail "Unsupported HEALTH_CHECK_MODE: $HEALTH_CHECK_MODE"

@@ -57,31 +57,11 @@ resource "aws_security_group" "web" {
   }
 
   ingress {
-    description = "HTTP"
+    description = "CloudFront origin HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  dynamic "ingress" {
-    for_each = length(var.admin_cidr_blocks) > 0 ? [1] : []
-
-    content {
-      description = "Nginx Proxy Manager admin UI"
-      from_port   = 81
-      to_port     = 81
-      protocol    = "tcp"
-      cidr_blocks = var.admin_cidr_blocks
-    }
+    cidr_blocks = var.origin_http_cidr_blocks
   }
 
   egress {

@@ -2,7 +2,7 @@
 
 This directory contains the CI/CD scripts for the application platform.
 
-The current implementation covers the first production services: `portfolio_service`, the gateway services `db` and `npm`, and `contact_service`.
+The current implementation covers the first production services: `portfolio_service` and `contact_service`.
 
 ## Current Scope
 
@@ -10,15 +10,14 @@ Implemented:
 
 - PR code validation workflow
 - Portfolio service build and deploy workflow
-- Gateway deploy workflow for Nginx Proxy Manager and its database
 - Contact service build and deploy workflow
 - Build approval gate
 - Docker Hub login, push, and logout
 - Docker Hub image validation
 - Deploy approval gate
 - Docker Hub login, pull, and logout
-- Deployment of only the targeted service or gateway services
-- Gateway host port conflict validation for `80`, `81`, and `443`
+- Deployment of only the targeted service
+- Legacy Nginx Proxy Manager decommission before portfolio binds host port `80`
 - Contact runtime environment rendering from GitHub Secrets
 - Application validation
 - Local N-1 cleanup
@@ -38,8 +37,6 @@ Configure these secrets in the repository or organization:
 DOCKERHUB_USERNAME
 DOCKERHUB_TOKEN
 DOCKERHUB_NAMESPACE
-NPM_DB_PASSWORD
-NPM_DB_ROOT_PASSWORD
 SMTP_HOST
 SMTP_PORT
 SMTP_SECURE
@@ -90,6 +87,8 @@ sudo systemctl start docker
 The pipeline must be able to run Docker either directly or through passwordless sudo. It will not modify Linux groups and will not restart the GitHub runner.
 
 When passwordless sudo is required for Docker, the deployment scripts preserve only Compose image interpolation values such as `DOCKERHUB_NAMESPACE` and `*_IMAGE_TAG`. Docker Hub credentials are not forwarded into the sudo environment.
+
+On small EC2 instances, the portfolio and contact workflows set `ALLOW_SWAP_MEMORY=true`, so pre-validation counts free swap together with available RAM. This is intended for the current single-instance deployment where a 1 GB swap file is configured.
 
 Install Docker Compose V2 manually if `yum install docker-compose-plugin` is not available:
 
@@ -144,6 +143,8 @@ Pipeline deployment:
 
 `contact_service` still requires real SMTP values for production use, but `contact/.env` is optional at compose render time so portfolio-only deployments are not blocked when the contact service is not part of the current release.
 
+`portfolio_service` publishes EC2 host port `80` and acts as the CloudFront origin. During portfolio deployment, the pipeline stops and removes legacy `npm` and `db` containers when `DECOMMISSION_LEGACY_GATEWAY=true`, leaving their Docker volumes intact.
+
 ## Contact Runtime Image
 
 `contact_service` uses an immutable image tag supplied at deploy time:
@@ -169,24 +170,29 @@ PORT=3000
 NODE_ENV=production
 ```
 
-## Gateway Deployment
+## CloudFront And Route 53
 
-The gateway workflow deploys only:
-
-```text
-db
-npm
-```
-
-Before deployment it validates host port ownership for:
+The public gateway is AWS-managed:
 
 ```text
-80
-81
-443
+Route 53 -> CloudFront -> EC2 origin port 80 -> portfolio_service
 ```
 
-The ports may be free or already owned by the `npm` container. If any other container or host process owns one of those ports, the pipeline fails before deployment.
+CloudFront should use an ACM certificate in `us-east-1` for:
+
+```text
+portfolio.srinivaspitchubabu.click
+```
+
+Use a separate origin DNS record, such as `origin.srinivaspitchubabu.click`, or the EC2 public DNS as the CloudFront origin. Do not use the same hostname for both the CloudFront viewer domain and the CloudFront origin.
+
+Configure a separate CloudFront behavior for:
+
+```text
+/api/contact*
+```
+
+with all methods allowed and caching disabled.
 
 ## Script Contract
 
@@ -203,7 +209,7 @@ Every script prints:
 - execution duration
 - standardized log levels
 
-## Pilot Service Inputs
+## Service Inputs
 
 The portfolio workflow passes:
 

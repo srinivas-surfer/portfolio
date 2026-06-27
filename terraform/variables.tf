@@ -22,8 +22,8 @@ variable "ssh_cidr_blocks" {
   default     = ["0.0.0.0/0"]
 }
 
-variable "admin_cidr_blocks" {
-  description = "CIDR blocks allowed to access Nginx Proxy Manager on port 81. Empty keeps the admin UI private."
+variable "origin_http_cidr_blocks" {
+  description = "CIDR blocks allowed to reach the EC2 HTTP origin on port 80. Restrict to CloudFront origin-facing ranges when possible."
   type        = list(string)
-  default     = []
+  default     = ["0.0.0.0/0"]
 }

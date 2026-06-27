@@ -25,6 +25,7 @@ env:
   HEALTH_CHECK_MODE: container-exec
   HEALTH_URL: http://127.0.0.1/
   MIN_MEMORY_MB: "256"
+  ALLOW_SWAP_MEMORY: "true"
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
@@ -97,6 +98,11 @@ jobs:
         run: |
           chmod +x deployment/scripts/*.sh
           deployment/scripts/git-sync.sh
+
+      - name: Decommission legacy Nginx Proxy Manager gateway
+        env:
+          DECOMMISSION_LEGACY_GATEWAY: "true"
+        run: deployment/scripts/decommission-legacy-gateway.sh
 
       - name: Deploy portfolio service
         env:
