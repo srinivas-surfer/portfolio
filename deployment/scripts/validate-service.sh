@@ -35,24 +35,54 @@ fi
 log "INFO" "Recent container logs for $CONTAINER_NAME:"
 docker logs --tail="${LOG_TAIL_LINES:-50}" "$CONTAINER_NAME" || true
 
-case "$HEALTH_CHECK_MODE" in
-  container-exec)
-    log "INFO" "Running container health check: $HEALTH_URL"
-    docker exec "$CONTAINER_NAME" wget -qO- "$HEALTH_URL" >/tmp/service-health-response.out
-    ;;
-  host)
-    command -v curl >/dev/null 2>&1 || fail "curl is required for host health checks."
-    log "INFO" "Running host health check: $HEALTH_URL"
-    curl -fsS "$HEALTH_URL" >/tmp/service-health-response.out
-    ;;
-  docker-network)
-    log "INFO" "Running Docker network health check: $HEALTH_URL"
-    docker run --rm --network "${DOCKER_NETWORK:-app_default}" curlimages/curl:8.10.1 -fsS "$HEALTH_URL" >/tmp/service-health-response.out
-    ;;
-  *)
-    fail "Unsupported HEALTH_CHECK_MODE: $HEALTH_CHECK_MODE"
-    ;;
-esac
+health_max_retries="${HEALTH_CHECK_RETRIES:-5}"
+health_retry_delay="${HEALTH_CHECK_RETRY_DELAY:-3}"
+health_attempt=0
+health_ok=false
+
+while (( health_attempt < health_max_retries )); do
+  health_attempt=$((health_attempt + 1))
+  log "INFO" "Health check attempt $health_attempt/$health_max_retries ($HEALTH_CHECK_MODE): $HEALTH_URL"
+
+  case "$HEALTH_CHECK_MODE" in
+    container-exec)
+      if docker exec "$CONTAINER_NAME" wget -qO- "$HEALTH_URL" >/tmp/service-health-response.out 2>/dev/null; then
+        health_ok=true
+      fi
+      ;;
+    host)
+      command -v curl >/dev/null 2>&1 || fail "curl is required for host health checks."
+      if curl -fsS "$HEALTH_URL" >/tmp/service-health-response.out 2>/dev/null; then
+        health_ok=true
+      fi
+      ;;
+    docker-network)
+      if docker run --rm --network "${DOCKER_NETWORK:-app_default}" curlimages/curl:8.10.1 -fsS "$HEALTH_URL" >/tmp/service-health-response.out 2>/dev/null; then
+        health_ok=true
+      fi
+      ;;
+    *)
+      fail "Unsupported HEALTH_CHECK_MODE: $HEALTH_CHECK_MODE"
+      ;;
+  esac
+
+  if [[ "$health_ok" == "true" ]]; then
+    break
+  fi
+
+  if (( health_attempt < health_max_retries )); then
+    log "WARN" "Health check failed on attempt $health_attempt. Retrying in ${health_retry_delay}s..."
+    sleep "$health_retry_delay"
+  fi
+done
+
+if [[ "$health_ok" != "true" ]]; then
+  log "INFO" "Recent container logs for $CONTAINER_NAME:"
+  docker logs --tail="${LOG_TAIL_LINES:-50}" "$CONTAINER_NAME" || true
+  fail "Health check failed after $health_max_retries attempts."
+fi
+
+log "INFO" "Health check passed on attempt $health_attempt."
 
 exposed_ports=$(docker inspect "$CONTAINER_NAME" --format '{{json .Config.ExposedPorts}}')
 log "INFO" "Exposed ports: $exposed_ports"
