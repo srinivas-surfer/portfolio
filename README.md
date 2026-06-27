@@ -12,6 +12,33 @@ Dockerized portfolio site split into small services:
 
 The root `docker-compose.yml` is the primary local orchestration file. It runs all services on a shared Docker network named `gateway_default`.
 
+## CI/CD Pilot
+
+Phase 1 CI/CD is implemented for `portfolio_service` only.
+
+The pilot uses:
+
+- GitHub Actions on a self-hosted runner
+- PR code validation before merge
+- Build approval through the `build-approval` GitHub environment
+- Docker Hub login, image build, push, and logout
+- Immutable Git SHA image tags
+- Deploy approval through the `production-deploy` GitHub environment
+- Docker Hub pull and deployment of only `portfolio_service`
+- N-1 local cleanup for rollback readiness
+
+Required GitHub Secrets:
+
+```text
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
+DOCKERHUB_NAMESPACE
+```
+
+Deployment scripts live in `deployment/scripts/`. Workflow logic should only orchestrate those scripts.
+
+See `deployment/README.md`, `deployment/PIPELINES.md`, `deployment/ROLLBACK.md`, and `deployment/RECOVERY.md`.
+
 ## Architecture
 
 ```text
@@ -48,6 +75,19 @@ Start the full stack:
 
 ```bash
 docker compose up -d --build
+```
+
+For local builds, `portfolio_service` defaults to:
+
+```text
+local/portfolio:latest
+```
+
+For CI/CD deployment, the workflow sets:
+
+```text
+DOCKERHUB_NAMESPACE=<dockerhub-namespace>
+PORTFOLIO_IMAGE_TAG=<git-sha>
 ```
 
 Open the Nginx Proxy Manager admin UI:

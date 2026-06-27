@@ -38,6 +38,52 @@ portfolio_service
 
 The contact API is intentionally private by default. Public traffic reaches it only through the portfolio service's `/api/contact` proxy.
 
+## CI/CD Pilot Architecture
+
+Phase 1 CI/CD is scoped to `portfolio_service` only.
+
+```text
+Pull Request
+  |
+  v
+PR Code Validation
+  |
+  v
+PR Approval
+  |
+  v
+Merge to main
+  |
+  v
+Build Approval
+  |
+  v
+Build portfolio image
+  |
+  v
+Push to Docker Hub
+  |
+  v
+Image Validation
+  |
+  v
+Deploy Approval
+  |
+  v
+Pull immutable SHA image
+  |
+  v
+docker compose up -d --no-build portfolio_service
+```
+
+The pilot does not restart unrelated services. Other service pipelines will be added only after the portfolio pattern is reviewed and approved.
+
+`portfolio_service` is the only Compose service currently parameterized for Docker Hub SHA deployment:
+
+```text
+${DOCKERHUB_NAMESPACE}/portfolio:${PORTFOLIO_IMAGE_TAG}
+```
+
 ## Static Service Layout
 
 Each static service follows this pattern:

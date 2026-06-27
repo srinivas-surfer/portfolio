@@ -38,7 +38,7 @@ services:
   # Portfolio Service (Homepage + Contact Form)
   portfolio_service:
     build: ./portfolio
-    image: portfolio:latest
+    image: ${DOCKERHUB_NAMESPACE:-local}/portfolio:${PORTFOLIO_IMAGE_TAG:-latest}
     container_name: portfolio_service
     expose:
       - "80"

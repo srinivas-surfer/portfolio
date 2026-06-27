@@ -4,6 +4,14 @@ Last source audit: June 25, 2026
 
 This file records the expected deployment state from the repository configuration. It does not prove that containers are currently running on any host.
 
+## CI/CD Pilot State
+
+Phase 1 CI/CD is implemented only for `portfolio_service`.
+
+The portfolio pipeline builds and pushes Docker Hub images, deploys an immutable Git SHA tag, validates the running container, and performs local N-1 cleanup.
+
+Other services still use the existing manual/local deployment model until their pipelines are separately approved and implemented.
+
 ## Expected Services
 
 | Service | Container | Internal Port | Public Access |

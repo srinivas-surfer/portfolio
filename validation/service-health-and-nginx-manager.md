@@ -2,6 +2,20 @@
 
 Run these commands from the project root on the Linux host.
 
+Phase 1 CI/CD currently automates only `portfolio_service`. These validation commands still apply to the full local stack, but the automated portfolio pipeline should restart only `portfolio_service`.
+
+For CI/CD deployment, the portfolio image is expected to come from Docker Hub:
+
+```text
+${DOCKERHUB_NAMESPACE}/portfolio:${PORTFOLIO_IMAGE_TAG}
+```
+
+The portfolio pipeline validates the container internally with:
+
+```bash
+docker exec portfolio_service wget -qO- http://127.0.0.1/
+```
+
 ## 1. Start Services
 
 ```bash
