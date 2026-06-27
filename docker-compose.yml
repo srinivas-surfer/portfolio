@@ -1,0 +1,95 @@
+services:
+  # Nginx Proxy Manager Gateway
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: npm
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    environment:
+      DB_MYSQL_HOST: db
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: npm
+      DB_MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm}
+      DB_MYSQL_NAME: npm
+      DISABLE_IPV6: 'true'
+    volumes:
+      - npm_data:/data:rw
+      - npm_letsencrypt:/etc/letsencrypt:rw
+      - ./gateway/npm-custom:/data/nginx/custom:rw
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # MariaDB for Nginx Proxy Manager
+  db:
+    image: jc21/mariadb-aria:latest
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${NPM_DB_ROOT_PASSWORD:-npm}
+      MYSQL_DATABASE: npm
+      MYSQL_USER: npm
+      MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm}
+    volumes:
+      - npm_db:/var/lib/mysql:rw
+    restart: unless-stopped
+
+  # Portfolio Service (Homepage + Contact Form)
+  portfolio_service:
+    build: ./portfolio
+    image: ${DOCKERHUB_NAMESPACE:-local}/portfolio:${PORTFOLIO_IMAGE_TAG:-latest}
+    container_name: portfolio_service
+    expose:
+      - "80"
+    depends_on:
+      - contact_service
+    restart: unless-stopped
+
+  # Experience Service
+  experience_service:
+    build: ./experience
+    image: experience:latest
+    container_name: experience_service
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  # Projects Service
+  projects_service:
+    build: ./projects
+    image: projects:latest
+    container_name: projects_service
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  # Blog Service
+  blog_service:
+    build: ./blog
+    image: blog:latest
+    container_name: blog_service
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  # Contact Service (Node.js Backend with Amazon SES SMTP)
+  contact_service:
+    build: ./contact
+    image: contact-service:latest
+    container_name: contact_service
+    expose:
+      - "3000"
+    env_file:
+      - ./contact/.env
+    restart: unless-stopped
+
+networks:
+  default:
+    name: gateway_default
+    driver: bridge
+
+volumes:
+  npm_data:
+  npm_letsencrypt:
+  npm_db:

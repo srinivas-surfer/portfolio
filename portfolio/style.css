@@ -13,7 +13,7 @@
 .cta-row{display:flex;gap:14px;align-items:center}
 .btn{border:1px solid var(--accent);padding:10px 14px;border-radius:12px;text-decoration:none;color:var(--text);font-weight:700}
 .btn.primary{background:var(--accent);color:#101014}
-.socials a{display:inline-flex;width:36px;height:36px;border:1px solid #2a2a2a;border-radius:10px;align-items:center;justify-content:center;background:#101010}
+.socials a,.socials .social-link{display:inline-flex;width:36px;height:36px;border:1px solid #2a2a2a;border-radius:10px;align-items:center;justify-content:center;background:#101010}
 .socials img{width:18px;height:18px}
 .skill-category{margin:26px 4px 6px;padding-left:10px;border-left:4px solid var(--accent);font-weight:800;color:var(--accent2)}
 .skills-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:18px;margin:14px 0;padding:0 8px}

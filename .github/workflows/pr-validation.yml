@@ -1,0 +1,23 @@
+name: PR Code Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  code-validation:
+    name: Code validation
+    runs-on: self-hosted
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+
+      - name: Run PR code validation
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/code-validation.sh
+

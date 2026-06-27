@@ -5,19 +5,25 @@ terraform {
   }
 }
 
-provider "aws" { region = var.region }
+provider "aws" {
+  region = var.region
+}
 
 resource "aws_vpc" "main" {
   cidr_block = "10.20.0.0/16"
-  tags = { Name = "portfolio-vpc" }
+  tags = {
+    Name = "portfolio-vpc"
+  }
 }
 
 resource "aws_subnet" "public" {
-  vpc_id = aws_vpc.main.id
-  cidr_block = "10.20.1.0/24"
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.20.1.0/24"
   map_public_ip_on_launch = true
-  availability_zone = "${var.region}a"
-  tags = { Name = "portfolio-public" }
+  availability_zone       = "${var.region}a"
+  tags = {
+    Name = "portfolio-public"
+  }
 }
 
 resource "aws_internet_gateway" "gw" {
@@ -26,21 +32,64 @@ resource "aws_internet_gateway" "gw" {
 
 resource "aws_route_table" "rt" {
   vpc_id = aws_vpc.main.id
-  route { cidr_block = "0.0.0.0/0" gateway_id = aws_internet_gateway.gw.id }
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.gw.id
+  }
 }
 
 resource "aws_route_table_association" "a" {
-  subnet_id = aws_subnet.public.id
+  subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.rt.id
 }
 
 resource "aws_security_group" "web" {
   name   = "portfolio-sg"
   vpc_id = aws_vpc.main.id
-  ingress { from_port = 22 to_port = 22 protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 8080 to_port = 8080 protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 8081 to_port = 8081 protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  egress {  from_port = 0 to_port = 0 protocol = "-1" cidr_blocks = ["0.0.0.0/0"] }
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = var.ssh_cidr_blocks
+  }
+
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  dynamic "ingress" {
+    for_each = length(var.admin_cidr_blocks) > 0 ? [1] : []
+
+    content {
+      description = "Nginx Proxy Manager admin UI"
+      from_port   = 81
+      to_port     = 81
+      protocol    = "tcp"
+      cidr_blocks = var.admin_cidr_blocks
+    }
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_instance" "host" {
@@ -52,7 +101,7 @@ resource "aws_instance" "host" {
 
   user_data = file("${path.module}/user_data.sh")
 
-  tags = { Name = "portfolio-blog-host" }
+  tags = {
+    Name = "portfolio-host"
+  }
 }
-
-output "public_ip" { value = aws_instance.host.public_ip }

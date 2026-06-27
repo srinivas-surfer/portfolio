@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Opportunities - Srinivas</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <a class="brand" href="http://portfolio.localhost/">Srinivas Pitchubabu</a>
+    <nav class="nav">
+      <a href="http://portfolio.localhost/#hero">About</a>
+      <a href="http://experience.localhost/">Experience</a>
+      <a href="http://projects.localhost/">Projects</a>
+      <a href="http://portfolio.localhost/contact.html">Opportunities</a>
+      <a href="http://blog.localhost/">Blog</a>
+    </nav>
+    <button id="theme-toggle" aria-label="Toggle color theme">Light</button>
+  </header>
+
+  <main class="section">
+    <h1 class="section-title">Opportunities &amp; Contact</h1>
+    <p>Have an exciting SRE, DevOps, or Cloud opportunity? I would love to hear from you.</p>
+
+    <form id="contact-form" class="card" style="max-width: 600px; margin: 2rem auto;">
+      <div style="margin-bottom: 1.5rem;">
+        <label for="name" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Name</label>
+        <input type="text" id="name" name="name" required style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label for="email" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Email</label>
+        <input type="email" id="email" name="email" required style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label for="company" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Company</label>
+        <input type="text" id="company" name="company" style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label for="message" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Message</label>
+        <textarea id="message" name="message" rows="6" required style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-family: inherit;"></textarea>
+      </div>
+
+      <button type="submit" class="btn primary" style="width: 100%;">Send Message</button>
+      <p id="form-status" style="margin-top: 1rem; text-align: center;"></p>
+    </form>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2025 Srinivas Pitchubabu</p>
+    <div class="socials">
+      <span class="social-link" title="GitHub profile URL pending"><img src="assets/icons/github.svg" alt="GitHub"></span>
+      <span class="social-link" title="LinkedIn profile URL pending"><img src="assets/icons/linkedin.svg" alt="LinkedIn"></span>
+      <a href="/contact.html" aria-label="Contact page"><img src="assets/icons/mail.svg" alt=""></a>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('contact-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const statusEl = document.getElementById('form-status');
+      statusEl.textContent = 'Sending...';
+
+      const formData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        company: document.getElementById('company').value,
+        message: document.getElementById('message').value
+      };
+
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          statusEl.textContent = 'Message sent. I will be in touch soon.';
+          statusEl.style.color = 'green';
+          document.getElementById('contact-form').reset();
+        } else {
+          statusEl.textContent = 'Error sending message. Please try again.';
+          statusEl.style.color = 'red';
+        }
+      } catch (error) {
+        statusEl.textContent = 'Error sending message. Please try again.';
+        statusEl.style.color = 'red';
+      }
+    });
+  </script>
+</body>
+</html>
