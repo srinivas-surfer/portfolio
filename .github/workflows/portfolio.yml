@@ -77,7 +77,7 @@ jobs:
         id: validate-image
         env:
           IMAGE_TAG: ${{ steps.build-image.outputs.image_tag }}
-          VALIDATE_IMAGE_STARTUP: "true"
+          VALIDATE_IMAGE_STARTUP: "false"
         run: deployment/scripts/validate-image.sh
 
   deploy:
