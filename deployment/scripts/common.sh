@@ -1,5 +1,27 @@
 #!/usr/bin/env bash
 
+log() {
+  printf '[%s] %s\n' "$1" "$2"
+}
+
+finish() {
+  local status="$1"
+  local end_time
+  end_time=$(date +%s)
+  log "$status" "$STAGE finished in $((end_time - START_TIME))s"
+}
+
+fail() {
+  log "ERROR" "$1"
+  finish "FAILED"
+  exit 1
+}
+
+require_env() {
+  local name="$1"
+  [[ -n "${!name:-}" ]] || fail "Required environment variable is missing: $name"
+}
+
 common_log() {
   if declare -F log >/dev/null 2>&1; then
     log "$1" "$2"
