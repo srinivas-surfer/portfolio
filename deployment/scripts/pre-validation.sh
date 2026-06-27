@@ -45,13 +45,9 @@ for var in "${extra_required_env[@]}"; do
 done
 
 command -v git >/dev/null 2>&1 || fail "git is not installed."
-command -v docker >/dev/null 2>&1 || fail "docker is not installed."
-if ! compose_available; then
-  compose_install_hint
-  fail "Docker Compose is not available."
-fi
+ensure_docker_stack || fail "Docker/Compose bootstrap failed."
+log "INFO" "Docker check passed: $(docker --version)"
 log "INFO" "Compose check passed: $(compose_version | head -n 1)"
-docker info >/dev/null 2>&1 || fail "Docker daemon is not reachable."
 
 [[ -f docker-compose.yml ]] || fail "docker-compose.yml is missing."
 [[ -d "$SERVICE_PATH" ]] || fail "Service path missing: $SERVICE_PATH"

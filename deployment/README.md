@@ -71,8 +71,9 @@ sudo yum update -y
 sudo yum install -y docker git
 sudo systemctl enable docker
 sudo systemctl start docker
-sudo usermod -aG docker ec2-user
 ```
+
+The pipeline must be able to run Docker either directly or through passwordless sudo. It will not modify Linux groups and will not restart the GitHub runner.
 
 Install Docker Compose V2 manually if `yum install docker-compose-plugin` is not available:
 
@@ -96,12 +97,11 @@ sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 docker compose version
 ```
 
-After changing Docker group membership, log out and back in or restart the GitHub runner service:
+Verify runner access without restarting the runner:
 
 ```bash
-cd ~/actions-runner
-sudo ./svc.sh restart
-sudo ./svc.sh status
+docker ps || sudo -n docker ps
+docker compose version || sudo -n docker compose version
 ```
 
 ## Portfolio Runtime Image

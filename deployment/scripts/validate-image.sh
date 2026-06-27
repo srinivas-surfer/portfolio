@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 START_TIME=$(date +%s)
 STAGE="Image Validation"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/common.sh"
 
 log() {
   printf '[%s] %s\n' "$1" "$2"
@@ -37,6 +40,8 @@ log "INFO" "START $STAGE"
 for var in IMAGE_NAME IMAGE_TAG DOCKERHUB_USERNAME DOCKERHUB_TOKEN DOCKERHUB_NAMESPACE; do
   require_env "$var"
 done
+
+ensure_docker_stack || fail "Docker/Compose bootstrap failed."
 
 IMAGE_REPOSITORY="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
 IMAGE_REF="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
