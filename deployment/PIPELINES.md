@@ -15,7 +15,7 @@ Developer branch
   -> Image validation
   -> Deploy approval
   -> Docker Hub pull
-  -> Deploy only portfolio_service
+  -> Deploy only portfolio_service with no dependency restart
   -> Application validation
   -> N-1 local cleanup
 ```
@@ -88,3 +88,4 @@ portfolio_service
 
 It must not restart `blog_service`, `projects_service`, `experience_service`, `contact_service`, `npm`, or `db`.
 
+Deployment scripts use `docker compose up -d --no-build --no-deps portfolio_service` so Compose recreates only the requested service. Portfolio no longer depends on `contact_service` at compose startup; contact remains a separately deployable service.

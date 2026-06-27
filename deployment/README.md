@@ -15,7 +15,7 @@ Implemented in Phase 1:
 - Docker Hub image validation
 - Deploy approval gate
 - Docker Hub login, pull, and logout
-- Deployment of only `portfolio_service`
+- Deployment of only `portfolio_service` without starting dependencies
 - Application validation
 - Local N-1 cleanup
 
@@ -123,6 +123,10 @@ Pipeline deployment:
 ```text
 <dockerhub-namespace>/portfolio:<git-sha>
 ```
+
+`portfolio_service` is intentionally deployable without `contact_service`. The compose deployment uses `--no-deps`, and the portfolio Nginx contact proxy resolves `contact_service` only when `/api/contact` is requested.
+
+`contact_service` still requires real SMTP values for production use, but `contact/.env` is optional at compose render time so portfolio-only deployments are not blocked when the contact service is not part of the current release.
 
 ## Script Contract
 

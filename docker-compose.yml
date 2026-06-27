@@ -42,8 +42,6 @@ services:
     container_name: portfolio_service
     expose:
       - "80"
-    depends_on:
-      - contact_service
     restart: unless-stopped
 
   # Experience Service
@@ -81,7 +79,8 @@ services:
     expose:
       - "3000"
     env_file:
-      - ./contact/.env
+      - path: ./contact/.env
+        required: false
     restart: unless-stopped
 
 networks:
