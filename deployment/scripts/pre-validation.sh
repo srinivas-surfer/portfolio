@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 START_TIME=$(date +%s)
 STAGE="Pre Validation"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/common.sh"
 
 log() {
   printf '[%s] %s\n' "$1" "$2"
@@ -43,7 +46,11 @@ done
 
 command -v git >/dev/null 2>&1 || fail "git is not installed."
 command -v docker >/dev/null 2>&1 || fail "docker is not installed."
-docker compose version >/dev/null 2>&1 || fail "docker compose is not available."
+if ! compose_available; then
+  compose_install_hint
+  fail "Docker Compose is not available."
+fi
+log "INFO" "Compose check passed: $(compose_version | head -n 1)"
 docker info >/dev/null 2>&1 || fail "Docker daemon is not reachable."
 
 [[ -f docker-compose.yml ]] || fail "docker-compose.yml is missing."
@@ -87,8 +94,8 @@ cleanup_temp_env() {
 }
 trap 'cleanup_temp_env' EXIT
 
-docker compose config >/tmp/portfolio-compose-config.out
-docker compose config --services | grep -Fx "$COMPOSE_SERVICE" >/dev/null || fail "Compose service not found: $COMPOSE_SERVICE"
+compose config >/tmp/portfolio-compose-config.out
+compose config --services | grep -Fx "$COMPOSE_SERVICE" >/dev/null || fail "Compose service not found: $COMPOSE_SERVICE"
 
 cleanup_temp_env
 trap - EXIT

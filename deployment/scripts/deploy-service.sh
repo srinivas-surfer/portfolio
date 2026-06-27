@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 START_TIME=$(date +%s)
 STAGE="Deployment"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/common.sh"
 
 log() {
   printf '[%s] %s\n' "$1" "$2"
@@ -52,7 +55,11 @@ export "${IMAGE_TAG_ENV_VAR}=${IMAGE_TAG}"
 export DOCKERHUB_NAMESPACE
 
 log "INFO" "Deploying only compose service: $COMPOSE_SERVICE"
-docker compose up -d --no-build "$COMPOSE_SERVICE"
+if ! compose_available; then
+  compose_install_hint
+  fail "Docker Compose is not available."
+fi
+compose up -d --no-build "$COMPOSE_SERVICE"
 
 docker_logout
 trap - EXIT

@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 START_TIME=$(date +%s)
 STAGE="PR Code Validation"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/common.sh"
 
 log() {
   printf '[%s] %s\n' "$1" "$2"
@@ -47,7 +50,7 @@ if [[ -n "$tracked_env_files" ]]; then
   exit 1
 fi
 
-if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+if command -v docker >/dev/null 2>&1 && compose_available; then
   temp_contact_env="false"
   if [[ ! -f contact/.env && -f contact/.env.example ]]; then
     cp contact/.env.example contact/.env
@@ -61,11 +64,12 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   }
   trap 'cleanup_temp_env' EXIT
 
-  docker compose config >/tmp/portfolio-compose-config.out
+  compose config >/tmp/portfolio-compose-config.out
   cleanup_temp_env
   trap - EXIT
 else
-  log "WARN" "Docker Compose not available; skipping docker compose config validation."
+  log "WARN" "Docker Compose not available; skipping compose config validation."
+  compose_install_hint
 fi
 
 if compgen -G "deployment/scripts/*.sh" >/dev/null; then

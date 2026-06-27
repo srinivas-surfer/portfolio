@@ -70,3 +70,31 @@ DOCKERHUB_NAMESPACE
 
 Use a Docker Hub access token. Do not use a Docker Hub account password.
 
+## Docker Compose Is Missing
+
+If pre-validation fails with:
+
+```text
+Docker Compose is not available
+```
+
+verify on the EC2 runner:
+
+```bash
+docker --version
+docker compose version
+docker ps
+```
+
+On Amazon Linux, install Docker Compose V2 manually:
+
+```bash
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then COMPOSE_ARCH="x86_64"; elif [ "$ARCH" = "aarch64" ]; then COMPOSE_ARCH="aarch64"; else echo "Unsupported architecture: $ARCH"; exit 1; fi
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -fSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-${COMPOSE_ARCH}" -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+docker compose version
+```
+
+Restart the GitHub runner after Docker or group membership changes.

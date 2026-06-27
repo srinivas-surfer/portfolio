@@ -51,6 +51,59 @@ production-deploy
 
 `production-deploy` gates the service restart and production deployment.
 
+## EC2 Runner Prerequisites
+
+The self-hosted runner must run on the EC2 host that deploys the Docker Compose stack.
+
+Required tools:
+
+```text
+git
+docker
+docker compose
+bash
+```
+
+Amazon Linux setup:
+
+```bash
+sudo yum update -y
+sudo yum install -y docker git
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker ec2-user
+```
+
+Install Docker Compose V2 manually if `yum install docker-compose-plugin` is not available:
+
+```bash
+ARCH=$(uname -m)
+
+if [ "$ARCH" = "x86_64" ]; then
+  COMPOSE_ARCH="x86_64"
+elif [ "$ARCH" = "aarch64" ]; then
+  COMPOSE_ARCH="aarch64"
+else
+  echo "Unsupported architecture: $ARCH"
+  exit 1
+fi
+
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -fSL \
+  "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-${COMPOSE_ARCH}" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+docker compose version
+```
+
+After changing Docker group membership, log out and back in or restart the GitHub runner service:
+
+```bash
+cd ~/actions-runner
+sudo ./svc.sh restart
+sudo ./svc.sh status
+```
+
 ## Portfolio Runtime Image
 
 `portfolio_service` uses an immutable image tag supplied at deploy time:
@@ -100,4 +153,3 @@ IMAGE_TAG_ENV_VAR=PORTFOLIO_IMAGE_TAG
 HEALTH_CHECK_MODE=container-exec
 HEALTH_URL=http://127.0.0.1/
 ```
-
