@@ -7,17 +7,16 @@ Dockerized portfolio site split into small services:
 - `projects/` - project showcase
 - `blog/` - blog listing and posts
 - `contact/` - Node.js contact API using Amazon SES SMTP
-- `gateway/` - optional standalone Nginx Proxy Manager setup
+- `gateway/` - CloudFront and Route 53 gateway notes
 - `terraform/` - AWS EC2 host provisioning
 
-The root `docker-compose.yml` is the primary local orchestration file. It runs all services on a shared Docker network named `gateway_default`.
+The root `docker-compose.yml` is the primary local orchestration file. It runs all services on a shared Docker network named `app_default`.
 
 ## CI/CD
 
 CI/CD is implemented for:
 
 - `portfolio_service`
-- gateway services `db` and `npm`
 - `contact_service`
 
 The pipelines use:
@@ -29,8 +28,8 @@ The pipelines use:
 - Immutable Git SHA image tags
 - Deploy approval through the `production-deploy` GitHub environment
 - Docker Hub pull and deployment of only the targeted service
-- Gateway port conflict validation before Nginx Proxy Manager deployment
 - Contact runtime environment rendering from GitHub Secrets
+- Legacy Nginx Proxy Manager decommission before portfolio takes host port `80`
 - N-1 local cleanup for rollback readiness
 
 Required GitHub Secrets:
@@ -39,8 +38,6 @@ Required GitHub Secrets:
 DOCKERHUB_USERNAME
 DOCKERHUB_TOKEN
 DOCKERHUB_NAMESPACE
-NPM_DB_PASSWORD
-NPM_DB_ROOT_PASSWORD
 SMTP_HOST
 SMTP_PORT
 SMTP_SECURE
@@ -61,19 +58,23 @@ See `deployment/README.md`, `deployment/PIPELINES.md`, `deployment/ROLLBACK.md`,
 Browser
   |
   v
-Nginx Proxy Manager (:80, :443, :81 admin)
+Route 53
   |
-  +-- portfolio.localhost  -> portfolio_service:80
-  +-- experience.localhost -> experience_service:80
-  +-- projects.localhost   -> projects_service:80
-  +-- blog.localhost       -> blog_service:80
+  v
+CloudFront (:443 public TLS)
+  |
+  v
+EC2 origin (:80)
+  |
+  v
+portfolio_service:80
 
 portfolio_service
   |
   +-- /api/contact -> contact_service:3000
 ```
 
-The static services are private to the Docker network. Only Nginx Proxy Manager publishes host ports.
+`portfolio_service` publishes EC2 host port `80` for CloudFront origin traffic. `contact_service` remains private to the Docker network.
 
 ## Run Locally
 
@@ -84,8 +85,6 @@ cp contact/.env.example contact/.env
 ```
 
 Set real Amazon SES SMTP values in `contact/.env` when you want the contact form to send email.
-
-Optional: copy `.env.example` to `.env` if you want to override the local Nginx Proxy Manager database password defaults.
 
 Start the full stack:
 
@@ -107,31 +106,17 @@ PORTFOLIO_IMAGE_TAG=<git-sha>
 CONTACT_IMAGE_TAG=<git-sha>
 ```
 
-Open the Nginx Proxy Manager admin UI:
+Nginx Proxy Manager is no longer part of the active production path.
+
+## CloudFront And Route 53
+
+Production public traffic should use Route 53 and CloudFront:
 
 ```text
-http://localhost:81
+portfolio.srinivaspitchubabu.click -> Route 53 alias -> CloudFront -> EC2 origin port 80
 ```
 
-Default first-login credentials are provided by Nginx Proxy Manager:
-
-```text
-Email: admin@example.com
-Password: changeme
-```
-
-Change that password immediately after first login.
-
-## Proxy Hosts
-
-Create these proxy hosts in Nginx Proxy Manager:
-
-| Domain | Forward Host | Forward Port |
-| --- | --- | --- |
-| `portfolio.localhost` | `portfolio_service` | `80` |
-| `experience.localhost` | `experience_service` | `80` |
-| `projects.localhost` | `projects_service` | `80` |
-| `blog.localhost` | `blog_service` | `80` |
+Use a separate origin DNS record or the EC2 public DNS for the CloudFront origin. Do not point the CloudFront origin at the same hostname that aliases back to CloudFront.
 
 The contact form posts to `/api/contact` on the portfolio service. The portfolio Nginx config proxies that path to `contact_service:3000`.
 
@@ -141,7 +126,7 @@ Production portfolio domain example:
 portfolio.srinivaspitchubabu.click -> portfolio_service:80
 ```
 
-Use Nginx Proxy Manager to redirect `/` to `/portfolio` if that path is required.
+Use CloudFront or the portfolio Nginx config to redirect `/` to `/portfolio` if that path is required.
 
 ## Useful Commands
 
@@ -162,17 +147,16 @@ docker compose build portfolio_service
 Test the contact service from inside the Docker network:
 
 ```bash
-docker compose exec npm curl -s http://contact_service:3000/health
+docker compose exec portfolio_service wget -qO- http://contact_service:3000/health
 ```
 
 ## Terraform
 
-Terraform provisions a simple EC2 host, VPC, subnet, route table, and security group. The security group opens:
+Terraform provisions a simple EC2 host, VPC, subnet, route table, and security group. For the CloudFront-origin model, the security group should allow:
 
 - `22` for SSH, controlled by `ssh_cidr_blocks`
-- `80` for HTTP
-- `443` for HTTPS
-- `81` for Nginx Proxy Manager admin only when `admin_cidr_blocks` is set
+- `80` for CloudFront origin traffic
+- outbound `587` for Amazon SES SMTP when using the current contact configuration
 
 Example:
 
@@ -183,8 +167,7 @@ terraform apply \
   -var region=ap-south-1 \
   -var ami_id=ami-xxxxxxxx \
   -var key_name=your-keypair \
-  -var 'ssh_cidr_blocks=["YOUR_IP/32"]' \
-  -var 'admin_cidr_blocks=["YOUR_IP/32"]'
+  -var 'ssh_cidr_blocks=["YOUR_IP/32"]'
 ```
 
 The EC2 user data installs Docker and Docker Compose. It does not copy this repository or deploy the containers for you.

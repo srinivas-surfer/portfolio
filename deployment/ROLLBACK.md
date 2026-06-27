@@ -69,24 +69,13 @@ docker logs --tail=50 contact_service
 docker exec contact_service wget -qO- http://127.0.0.1:3000/health
 ```
 
-## Gateway Recovery
+## CloudFront Origin Recovery
 
-The gateway workflow uses vendor images for `db` and `npm`, so it does not maintain SHA-based app-image rollback.
+CloudFront and Route 53 are AWS-managed resources and are not rolled back by Docker image tags.
 
-Gateway state is stored in Docker volumes:
+If portfolio rollback is required, roll back `portfolio_service` to the previous SHA and keep EC2 host port `80` bound by `portfolio_service`.
 
-```text
-npm_data
-npm_letsencrypt
-npm_db
-```
-
-For gateway recovery, restart only the gateway services:
-
-```bash
-docker compose up -d --no-build --no-deps db
-docker compose up -d --no-build --no-deps npm
-```
+Legacy Nginx Proxy Manager containers are removed by the portfolio workflow, but their Docker volumes are not deleted. They should remain unused unless a separate, approved rollback to the old NPM architecture is planned.
 
 ## Important Limits
 

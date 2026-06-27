@@ -9,12 +9,11 @@ This file records the expected deployment state from the repository configuratio
 CI/CD is implemented for:
 
 - `portfolio_service`
-- gateway services `db` and `npm`
 - `contact_service`
 
 The portfolio and contact pipelines build and push Docker Hub images, deploy immutable Git SHA tags, validate running containers, and perform local N-1 cleanup.
 
-The gateway pipeline deploys Nginx Proxy Manager and its MariaDB database after validating host ports `80`, `81`, and `443`.
+The public gateway is Route 53 and CloudFront. `portfolio_service` publishes EC2 host port `80` as the CloudFront origin.
 
 Experience, projects, blog, and the master pipeline still use the existing manual/local deployment model until their pipelines are separately approved and implemented.
 
@@ -22,30 +21,19 @@ Experience, projects, blog, and the master pipeline still use the existing manua
 
 | Service | Container | Internal Port | Public Access |
 | --- | --- | --- | --- |
-| Portfolio | `portfolio_service` | `80` | Via Nginx Proxy Manager |
-| Experience | `experience_service` | `80` | Via Nginx Proxy Manager |
-| Projects | `projects_service` | `80` | Via Nginx Proxy Manager |
-| Blog | `blog_service` | `80` | Via Nginx Proxy Manager |
+| Portfolio | `portfolio_service` | `80` | Host port `80`, CloudFront origin |
+| Experience | `experience_service` | `80` | Private Docker network |
+| Projects | `projects_service` | `80` | Private Docker network |
+| Blog | `blog_service` | `80` | Private Docker network |
 | Contact API | `contact_service` | `3000` | Private, proxied by portfolio `/api/contact` |
-| Nginx Proxy Manager | `npm` | `80`, `81`, `443` | Host ports `80`, `81`, `443` |
-| MariaDB | `db` | `3306` | Private Docker network |
 
 ## Expected URLs
 
-After proxy hosts are configured in Nginx Proxy Manager:
+After Route 53 and CloudFront are configured:
 
 ```text
-http://portfolio.localhost/
-http://experience.localhost/
-http://projects.localhost/
-http://blog.localhost/
-http://portfolio.localhost/contact.html
-```
-
-Admin UI:
-
-```text
-http://localhost:81
+https://portfolio.srinivaspitchubabu.click/
+https://portfolio.srinivaspitchubabu.click/portfolio
 ```
 
 ## Start Locally
@@ -56,13 +44,11 @@ docker compose up -d --build
 ```
 
 Set real Amazon SES SMTP values in `contact/.env` before testing real email delivery.
-Copy `.env.example` to `.env` only when you want to override the Nginx Proxy Manager database password defaults.
 
 ## Check
 
 ```bash
 docker compose ps
-docker compose logs -f npm
 docker compose logs -f portfolio_service
 docker compose logs -f contact_service
 ```
@@ -70,7 +56,7 @@ docker compose logs -f contact_service
 Contact API health check:
 
 ```bash
-docker compose exec npm curl -s http://contact_service:3000/health
+docker compose exec portfolio_service wget -qO- http://contact_service:3000/health
 ```
 
 ## Rebuild
@@ -92,7 +78,7 @@ docker compose up -d --build
 docker compose down
 ```
 
-Remove persistent Nginx Proxy Manager data as well:
+Remove containers and app network:
 
 ```bash
 docker compose down -v
@@ -100,14 +86,12 @@ docker compose down -v
 
 ## Deployment Checklist
 
-- [ ] Configure GitHub Secrets for Docker Hub, gateway database, and contact SMTP.
-- [ ] Run the gateway workflow to start `db` and `npm`.
+- [ ] Configure GitHub Secrets for Docker Hub and contact SMTP.
 - [ ] Run the portfolio workflow to deploy `portfolio_service`.
 - [ ] Run the contact workflow to deploy `contact_service`.
-- [ ] Configure Nginx Proxy Manager proxy hosts.
-- [ ] Change the default Nginx Proxy Manager admin password.
-- [ ] Restrict port `81` to trusted IP ranges.
-- [ ] Enable HTTPS certificates for production domains.
+- [ ] Configure CloudFront distribution with ACM certificate in `us-east-1`.
+- [ ] Configure Route 53 alias record to CloudFront.
+- [ ] Configure `/api/contact*` CloudFront behavior with caching disabled.
+- [ ] Restrict EC2 inbound `80` to CloudFront origin-facing ranges where possible.
 - [ ] Replace placeholder GitHub and LinkedIn URLs in HTML pages.
 - [ ] Remove `.DS_Store` files from the repository.
-- [ ] Add CI/CD once the deployment target is finalized.

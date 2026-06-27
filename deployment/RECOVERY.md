@@ -1,6 +1,6 @@
 # Recovery Guide
 
-This guide covers recovery for the implemented platform pipelines: portfolio, gateway, and contact.
+This guide covers recovery for the implemented platform pipelines: portfolio and contact.
 
 ## Build Fails
 
@@ -74,32 +74,40 @@ ls -l contact/.env
 docker exec contact_service wget -qO- http://127.0.0.1:3000/health
 ```
 
-## Gateway Deploy Fails
+## CloudFront Origin Deploy Fails
 
 Check port ownership first:
 
 ```bash
 docker ps
-sudo ss -ltnp | grep -E ':80|:81|:443' || true
+sudo ss -ltnp | grep ':80' || true
 ```
 
-Allowed owner:
+Expected owner after deployment:
 
 ```text
-npm
+portfolio_service
 ```
 
-Unexpected owners such as host `nginx`, host `apache`, or another container must be stopped or moved before rerunning the gateway workflow.
+Unexpected owners such as legacy `npm`, host `nginx`, host `apache`, or another container must be stopped or moved before rerunning the portfolio workflow.
 
-Check gateway logs:
+The portfolio workflow runs:
+
+```text
+deployment/scripts/decommission-legacy-gateway.sh
+```
+
+with `DECOMMISSION_LEGACY_GATEWAY=true` before recreating `portfolio_service`.
+
+Check origin health:
 
 ```bash
-docker compose ps db npm
-docker compose logs --tail=80 db
-docker compose logs --tail=80 npm
+docker compose ps portfolio_service
+docker compose logs --tail=80 portfolio_service
+curl -I http://127.0.0.1
 ```
 
-If NPM cannot connect to MariaDB, verify `NPM_DB_PASSWORD` and `NPM_DB_ROOT_PASSWORD`. Existing `npm_db` volumes keep their original database credentials.
+If CloudFront returns an error after the EC2 origin works, check the CloudFront origin domain, security group inbound rules, and the cache behavior for `/api/contact*`.
 
 ## Docker Hub Authentication Fails
 

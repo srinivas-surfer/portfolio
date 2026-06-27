@@ -56,31 +56,6 @@ The `build` job uses the `build-approval` environment.
 
 The `deploy` job uses the `production-deploy` environment.
 
-### `gateway.yml`
-
-Runs on:
-
-- push to `main` when `gateway/**`, `docker-compose.yml`, `deployment/scripts/**`, or the workflow changes
-- manual `workflow_dispatch`
-
-Jobs:
-
-```text
-pre-validation
-deploy
-```
-
-The gateway workflow deploys only:
-
-```text
-db
-npm
-```
-
-It validates host ports `80`, `81`, and `443` before deployment. The ports may be free or already owned by the `npm` container. Any other owner fails the deployment.
-
-The `deploy` job uses the `production-deploy` environment.
-
 ### `contact.yml`
 
 Runs on:
@@ -150,8 +125,8 @@ The portfolio workflow deploys only:
 portfolio_service
 ```
 
-It must not restart `blog_service`, `projects_service`, `experience_service`, `contact_service`, `npm`, or `db`.
+It must not restart `blog_service`, `projects_service`, `experience_service`, or `contact_service`.
 
 Deployment scripts use `docker compose up -d --no-build --no-deps <service>` so Compose recreates only the requested service. Portfolio no longer depends on `contact_service` at compose startup; contact remains a separately deployable service.
 
-The gateway workflow is the only current workflow allowed to deploy `db` and `npm`.
+The portfolio workflow also runs a one-time legacy gateway decommission step so old `npm` and `db` containers do not block EC2 host port `80`. The active public gateway is AWS CloudFront, not a Docker service.

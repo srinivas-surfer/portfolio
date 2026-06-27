@@ -1,56 +1,87 @@
-# Nginx Proxy Manager Gateway
+# AWS Edge Gateway
 
-This folder contains a standalone Nginx Proxy Manager compose file. For normal local development, prefer the root `docker-compose.yml` because it starts the gateway, database, static services, and contact API together.
-
-## Standalone Gateway
-
-```bash
-cd gateway
-docker compose -f docker-compose.proxy-manager.yml up -d
-```
-
-Production deployment is handled by the root workflow:
+The production gateway is now AWS-managed:
 
 ```text
-.github/workflows/gateway.yml
+Route 53 -> CloudFront -> EC2 origin port 80 -> portfolio_service
 ```
 
-That workflow deploys only `db` and `npm` from the root `docker-compose.yml` after checking that host ports `80`, `81`, and `443` are free or already owned by the `npm` container.
+Nginx Proxy Manager and its MariaDB database are no longer part of the active application platform.
 
-Admin UI:
+## Route 53
+
+Create or update the public application record:
 
 ```text
-http://localhost:81
+portfolio.srinivaspitchubabu.click
 ```
 
-Default first-login credentials:
+Point it to the CloudFront distribution using a Route 53 alias record.
+
+Use a separate origin record or the EC2 public DNS for the CloudFront origin. Do not use the same hostname for both the CloudFront viewer domain and the CloudFront origin.
+
+Example origin record:
 
 ```text
-Email: admin@example.com
-Password: changeme
+origin.srinivaspitchubabu.click -> EC2 public IP
 ```
 
-Change the password immediately after first login.
+Prefer an Elastic IP for the EC2 origin so the origin address does not change after instance stop/start.
 
-## Shared Network
+## CloudFront
 
-The standalone compose file uses the explicit Docker network name `gateway_default`. This matches the root compose file and allows separately launched services to join the same network.
+Recommended distribution settings:
 
-## Proxy Hosts
+```text
+Alternate domain name: portfolio.srinivaspitchubabu.click
+Viewer certificate: ACM certificate in us-east-1
+Viewer protocol policy: Redirect HTTP to HTTPS
+Origin domain: origin.srinivaspitchubabu.click or EC2 public DNS
+Origin protocol policy: HTTP only
+Origin port: 80
+```
 
-When the full stack is running, add these proxy hosts:
+Recommended behavior for static portfolio content:
 
-| Domain | Forward Host | Forward Port |
-| --- | --- | --- |
-| `portfolio.localhost` | `portfolio_service` | `80` |
-| `experience.localhost` | `experience_service` | `80` |
-| `projects.localhost` | `projects_service` | `80` |
-| `blog.localhost` | `blog_service` | `80` |
+```text
+Path pattern: Default (*)
+Allowed methods: GET, HEAD
+Cache policy: Managed-CachingOptimized or a short custom TTL during early rollout
+```
 
-The contact API is not exposed as a separate public host by default. `portfolio_service` proxies `/api/contact` to `contact_service:3000`.
+Recommended behavior for the contact API:
 
-## Production Notes
+```text
+Path pattern: /api/contact*
+Allowed methods: GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE
+Cache policy: Managed-CachingDisabled
+Origin request policy: forward headers needed for CORS
+```
 
-- Enable Let's Encrypt certificates for public domains.
-- Restrict access to port `81` by firewall/security group rules.
-- Persist the `npm_data`, `npm_letsencrypt`, and `npm_db` volumes.
+## EC2 Security Group
+
+Minimum inbound rules:
+
+```text
+TCP 80 from CloudFront origin-facing ranges, preferred
+TCP 22 from trusted access path only, or use AWS Systems Manager Session Manager
+```
+
+No public `81` rule is required because Nginx Proxy Manager is removed.
+
+Minimum outbound rules:
+
+```text
+TCP 443 for GitHub, Docker Hub, and AWS APIs
+TCP 587 for Amazon SES SMTP
+```
+
+## Legacy Gateway Cleanup
+
+The portfolio workflow runs:
+
+```text
+deployment/scripts/decommission-legacy-gateway.sh
+```
+
+when `DECOMMISSION_LEGACY_GATEWAY=true`. This stops and removes only the legacy `npm` and `db` containers and keeps their Docker volumes intact.

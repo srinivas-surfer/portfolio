@@ -73,8 +73,14 @@ log "INFO" "Disk check passed: ${available_disk_mb}MB available."
 
 min_memory_mb="${MIN_MEMORY_MB:-512}"
 available_memory_mb="0"
+available_memory_label="memory"
 if [[ -r /proc/meminfo ]]; then
   available_memory_mb=$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)
+  if [[ "${ALLOW_SWAP_MEMORY:-false}" == "true" ]]; then
+    available_swap_mb=$(awk '/SwapFree/ {print int($2 / 1024)}' /proc/meminfo)
+    available_memory_mb=$((available_memory_mb + available_swap_mb))
+    available_memory_label="memory plus free swap"
+  fi
 elif command -v sysctl >/dev/null 2>&1; then
   available_memory_mb=$(sysctl -n hw.memsize 2>/dev/null | awk '{print int($1 / 1024 / 1024)}')
 fi
@@ -83,7 +89,7 @@ if [[ "$available_memory_mb" != "0" ]]; then
   if (( available_memory_mb < min_memory_mb )); then
     fail "Insufficient memory: ${available_memory_mb}MB available, ${min_memory_mb}MB required."
   fi
-  log "INFO" "Memory check passed: ${available_memory_mb}MB available."
+  log "INFO" "Memory check passed: ${available_memory_mb}MB available (${available_memory_label})."
 else
   log "WARN" "Could not determine available memory."
 fi
