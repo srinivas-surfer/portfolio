@@ -17,6 +17,7 @@ services:
     volumes:
       - npm_data:/data:rw
       - npm_letsencrypt:/etc/letsencrypt:rw
+      - ./gateway/npm-custom:/data/nginx/custom:rw
     depends_on:
       - db
     restart: unless-stopped
