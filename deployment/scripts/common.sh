@@ -145,21 +145,52 @@ ensure_docker_stack() {
 }
 
 compose() {
-  if docker compose version >/dev/null 2>&1; then
-    docker compose "$@"
+  local -a compose_env=()
+  local env_assignment
+
+  while IFS= read -r env_assignment; do
+    compose_env+=("$env_assignment")
+  done < <(compose_sudo_env)
+
+  if [[ "${DOCKER_USE_SUDO:-}" == "true" ]]; then
+    if sudo -n docker compose version >/dev/null 2>&1; then
+      sudo -n env "${compose_env[@]}" docker compose "$@"
+      return
+    fi
+
+    if command -v docker-compose >/dev/null 2>&1; then
+      sudo -n env "${compose_env[@]}" docker-compose "$@"
+      return
+    fi
+
+    return 127
+  fi
+
+  if command docker compose version >/dev/null 2>&1; then
+    command docker compose "$@"
     return
   fi
 
   if command -v docker-compose >/dev/null 2>&1; then
-    if [[ "${DOCKER_USE_SUDO:-}" == "true" ]]; then
-      sudo -n docker-compose "$@"
-    else
-      docker-compose "$@"
-    fi
+    docker-compose "$@"
     return
   fi
 
   return 127
+}
+
+compose_sudo_env() {
+  local name
+
+  if [[ -n "${DOCKERHUB_NAMESPACE:-}" ]]; then
+    printf '%s\n' "DOCKERHUB_NAMESPACE=$DOCKERHUB_NAMESPACE"
+  fi
+
+  while IFS= read -r name; do
+    if [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*_IMAGE_TAG$ && -n "${!name:-}" ]]; then
+      printf '%s\n' "$name=${!name}"
+    fi
+  done < <(compgen -v)
 }
 
 compose_available() {

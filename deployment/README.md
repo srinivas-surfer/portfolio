@@ -75,6 +75,8 @@ sudo systemctl start docker
 
 The pipeline must be able to run Docker either directly or through passwordless sudo. It will not modify Linux groups and will not restart the GitHub runner.
 
+When passwordless sudo is required for Docker, the deployment scripts preserve only Compose image interpolation values such as `DOCKERHUB_NAMESPACE` and `*_IMAGE_TAG`. Docker Hub credentials are not forwarded into the sudo environment.
+
 Install Docker Compose V2 manually if `yum install docker-compose-plugin` is not available:
 
 ```bash
