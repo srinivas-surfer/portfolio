@@ -41,12 +41,11 @@ app.use(cors({
       return callback(null, true);
     }
 
-    return callback(new Error('Not allowed by CORS'));
+    return callback(null, false);
   }
 }));
 
 app.post('/api/contact', contactLimiter, async (req, res) => {
-
   const name = String(req.body.name || '').trim();
   const email = String(req.body.email || '').trim();
   const company = String(req.body.company || '').trim();
