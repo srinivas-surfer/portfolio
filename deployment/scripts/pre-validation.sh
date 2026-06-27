@@ -7,28 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/common.sh"
 
-log() {
-  printf '[%s] %s\n' "$1" "$2"
-}
-
-finish() {
-  local status="$1"
-  local end_time
-  end_time=$(date +%s)
-  log "$status" "$STAGE finished in $((end_time - START_TIME))s"
-}
-
-fail() {
-  log "ERROR" "$1"
-  finish "FAILED"
-  exit 1
-}
-
-require_env() {
-  local name="$1"
-  [[ -n "${!name:-}" ]] || fail "Required environment variable is missing: $name"
-}
-
 trap 'fail "Unexpected failure at line $LINENO."' ERR
 
 log "INFO" "START $STAGE"

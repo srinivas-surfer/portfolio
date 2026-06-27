@@ -7,28 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/common.sh"
 
-log() {
-  printf '[%s] %s\n' "$1" "$2"
-}
-
-finish() {
-  local status="$1"
-  local end_time
-  end_time=$(date +%s)
-  log "$status" "$STAGE finished in $((end_time - START_TIME))s"
-}
-
-fail() {
-  log "ERROR" "$1"
-  finish "FAILED"
-  exit 1
-}
-
-require_env() {
-  local name="$1"
-  [[ -n "${!name:-}" ]] || fail "Required environment variable is missing: $name"
-}
-
 trap 'fail "Unexpected failure at line $LINENO."' ERR
 
 log "INFO" "START $STAGE"
@@ -69,7 +47,7 @@ case "$HEALTH_CHECK_MODE" in
     ;;
   docker-network)
     log "INFO" "Running Docker network health check: $HEALTH_URL"
-    docker run --rm --network "${DOCKER_NETWORK:-app_default}" curlimages/curl:latest -fsS "$HEALTH_URL" >/tmp/service-health-response.out
+    docker run --rm --network "${DOCKER_NETWORK:-app_default}" curlimages/curl:8.10.1 -fsS "$HEALTH_URL" >/tmp/service-health-response.out
     ;;
   *)
     fail "Unsupported HEALTH_CHECK_MODE: $HEALTH_CHECK_MODE"

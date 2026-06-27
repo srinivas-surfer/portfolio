@@ -1,9 +1,19 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
+
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many contact requests from this IP, please try again later.' }
+});
+
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(origin => origin.trim())
@@ -35,7 +45,8 @@ app.use(cors({
   }
 }));
 
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', contactLimiter, async (req, res) => {
+
   const name = String(req.body.name || '').trim();
   const email = String(req.body.email || '').trim();
   const company = String(req.body.company || '').trim();
@@ -127,6 +138,24 @@ function escapeHtml(text) {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Contact service listening on port ${PORT}`);
 });
+
+function gracefulShutdown(signal) {
+  console.log(`${signal} received. Shutting down gracefully.`);
+  server.close(() => {
+    transporter.close();
+    console.log('HTTP server and SMTP transporter closed.');
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
