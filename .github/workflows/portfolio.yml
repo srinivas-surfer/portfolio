@@ -24,6 +24,7 @@ env:
   IMAGE_TAG_ENV_VAR: PORTFOLIO_IMAGE_TAG
   HEALTH_CHECK_MODE: container-exec
   HEALTH_URL: http://127.0.0.1/
+  MIN_MEMORY_MB: "256"
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
@@ -111,4 +112,3 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         run: deployment/scripts/cleanup.sh
-
