@@ -38,9 +38,9 @@ portfolio_service
 
 The contact API is intentionally private by default. Public traffic reaches it only through the portfolio service's `/api/contact` proxy.
 
-## CI/CD Pilot Architecture
+## CI/CD Architecture
 
-Phase 1 CI/CD is scoped to `portfolio_service` only.
+CI/CD is currently implemented for `portfolio_service`, gateway services, and `contact_service`.
 
 ```text
 Pull Request
@@ -58,7 +58,7 @@ Merge to main
 Build Approval
   |
   v
-Build portfolio image
+Build app image
   |
   v
 Push to Docker Hub
@@ -73,16 +73,26 @@ Deploy Approval
 Pull immutable SHA image
   |
   v
-docker compose up -d --no-build portfolio_service
+docker compose up -d --no-build --no-deps <service>
 ```
 
-The pilot does not restart unrelated services. Other service pipelines will be added only after the portfolio pattern is reviewed and approved.
+App pipelines do not restart unrelated services. Other service pipelines will be added only after their designs are reviewed and approved.
 
-`portfolio_service` is the only Compose service currently parameterized for Docker Hub SHA deployment:
+Parameterized services for Docker Hub SHA deployment:
 
 ```text
 ${DOCKERHUB_NAMESPACE}/portfolio:${PORTFOLIO_IMAGE_TAG}
+${DOCKERHUB_NAMESPACE}/contact:${CONTACT_IMAGE_TAG}
 ```
+
+The gateway workflow is separate because it deploys vendor images:
+
+```text
+jc21/mariadb-aria:latest
+jc21/nginx-proxy-manager:latest
+```
+
+It validates host ports `80`, `81`, and `443` before starting `db` and `npm`.
 
 ## Static Service Layout
 

@@ -1,27 +1,31 @@
 # Deployment Guide
 
-This directory contains the Phase 1 CI/CD pilot for `portfolio_service`.
+This directory contains the CI/CD scripts for the application platform.
 
-The pilot proves the production deployment pattern for one low-risk service before the same model is expanded to the rest of the platform.
+The current implementation covers the first production services: `portfolio_service`, the gateway services `db` and `npm`, and `contact_service`.
 
 ## Current Scope
 
-Implemented in Phase 1:
+Implemented:
 
 - PR code validation workflow
-- Portfolio service build workflow
+- Portfolio service build and deploy workflow
+- Gateway deploy workflow for Nginx Proxy Manager and its database
+- Contact service build and deploy workflow
 - Build approval gate
 - Docker Hub login, push, and logout
 - Docker Hub image validation
 - Deploy approval gate
 - Docker Hub login, pull, and logout
-- Deployment of only `portfolio_service` without starting dependencies
+- Deployment of only the targeted service or gateway services
+- Gateway host port conflict validation for `80`, `81`, and `443`
+- Contact runtime environment rendering from GitHub Secrets
 - Application validation
 - Local N-1 cleanup
 
 Not implemented yet:
 
-- Blog, projects, experience, contact, gateway, or master deployment workflows
+- Blog, projects, experience, or master deployment workflows
 - Docker Hub remote tag cleanup
 - Rollback automation script
 - Portainer, Prometheus, or cAdvisor
@@ -34,6 +38,16 @@ Configure these secrets in the repository or organization:
 DOCKERHUB_USERNAME
 DOCKERHUB_TOKEN
 DOCKERHUB_NAMESPACE
+NPM_DB_PASSWORD
+NPM_DB_ROOT_PASSWORD
+SMTP_HOST
+SMTP_PORT
+SMTP_SECURE
+SMTP_USER
+SMTP_PASS
+SES_FROM_EMAIL
+SES_TO_EMAIL
+CORS_ORIGIN
 ```
 
 Use a Docker Hub access token, not an account password.
@@ -130,6 +144,50 @@ Pipeline deployment:
 
 `contact_service` still requires real SMTP values for production use, but `contact/.env` is optional at compose render time so portfolio-only deployments are not blocked when the contact service is not part of the current release.
 
+## Contact Runtime Image
+
+`contact_service` uses an immutable image tag supplied at deploy time:
+
+```text
+${DOCKERHUB_NAMESPACE}/contact:${CONTACT_IMAGE_TAG}
+```
+
+The contact workflow renders `contact/.env` on the EC2 runner from GitHub Secrets before deployment. The generated file is ignored by Git and should never be committed.
+
+Required contact runtime values:
+
+```text
+SMTP_HOST
+SMTP_PORT
+SMTP_SECURE
+SMTP_USER
+SMTP_PASS
+SES_FROM_EMAIL
+SES_TO_EMAIL
+CORS_ORIGIN
+PORT=3000
+NODE_ENV=production
+```
+
+## Gateway Deployment
+
+The gateway workflow deploys only:
+
+```text
+db
+npm
+```
+
+Before deployment it validates host port ownership for:
+
+```text
+80
+81
+443
+```
+
+The ports may be free or already owned by the `npm` container. If any other container or host process owns one of those ports, the pipeline fails before deployment.
+
 ## Script Contract
 
 GitHub Actions orchestrates only. Deployment logic lives in:
@@ -158,4 +216,17 @@ IMAGE_NAME=portfolio
 IMAGE_TAG_ENV_VAR=PORTFOLIO_IMAGE_TAG
 HEALTH_CHECK_MODE=container-exec
 HEALTH_URL=http://127.0.0.1/
+```
+
+The contact workflow uses the same service pipeline contract with:
+
+```text
+SERVICE_NAME=contact
+SERVICE_PATH=contact
+COMPOSE_SERVICE=contact_service
+CONTAINER_NAME=contact_service
+IMAGE_NAME=contact
+IMAGE_TAG_ENV_VAR=CONTACT_IMAGE_TAG
+HEALTH_CHECK_MODE=container-exec
+HEALTH_URL=http://127.0.0.1:3000/health
 ```

@@ -33,9 +33,15 @@ trap 'fail "Unexpected failure at line $LINENO."' ERR
 
 log "INFO" "START $STAGE"
 
-for var in SERVICE_NAME SERVICE_PATH COMPOSE_SERVICE IMAGE_NAME DOCKERHUB_USERNAME DOCKERHUB_TOKEN DOCKERHUB_NAMESPACE; do
+for var in SERVICE_NAME COMPOSE_SERVICE; do
   require_env "$var"
 done
+
+if [[ "${REQUIRE_IMAGE_CONFIG:-true}" != "false" ]]; then
+  for var in SERVICE_PATH IMAGE_NAME DOCKERHUB_USERNAME DOCKERHUB_TOKEN DOCKERHUB_NAMESPACE; do
+    require_env "$var"
+  done
+fi
 
 IFS=',' read -r -a extra_required_env <<< "${REQUIRED_ENV_VARS:-}"
 for var in "${extra_required_env[@]}"; do
@@ -50,8 +56,13 @@ log "INFO" "Docker check passed: $(docker --version)"
 log "INFO" "Compose check passed: $(compose_version | head -n 1)"
 
 [[ -f docker-compose.yml ]] || fail "docker-compose.yml is missing."
-[[ -d "$SERVICE_PATH" ]] || fail "Service path missing: $SERVICE_PATH"
-[[ -f "$SERVICE_PATH/Dockerfile" ]] || fail "Service Dockerfile missing: $SERVICE_PATH/Dockerfile"
+
+if [[ -n "${SERVICE_PATH:-}" ]]; then
+  [[ -d "$SERVICE_PATH" ]] || fail "Service path missing: $SERVICE_PATH"
+  if [[ "${REQUIRE_SERVICE_DOCKERFILE:-true}" != "false" ]]; then
+    [[ -f "$SERVICE_PATH/Dockerfile" ]] || fail "Service Dockerfile missing: $SERVICE_PATH/Dockerfile"
+  fi
+fi
 
 available_disk_mb=$(df -Pm . | awk 'NR==2 {print $4}')
 min_disk_mb="${MIN_DISK_MB:-1024}"
@@ -91,7 +102,13 @@ cleanup_temp_env() {
 trap 'cleanup_temp_env' EXIT
 
 compose config >/tmp/portfolio-compose-config.out
-compose config --services | grep -Fx "$COMPOSE_SERVICE" >/dev/null || fail "Compose service not found: $COMPOSE_SERVICE"
+
+IFS=',' read -r -a compose_services <<< "${REQUIRED_COMPOSE_SERVICES:-$COMPOSE_SERVICE}"
+for service in "${compose_services[@]}"; do
+  service="${service//[[:space:]]/}"
+  [[ -z "$service" ]] && continue
+  compose config --services | grep -Fx "$service" >/dev/null || fail "Compose service not found: $service"
+done
 
 cleanup_temp_env
 trap - EXIT

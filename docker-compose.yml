@@ -74,7 +74,7 @@ services:
   # Contact Service (Node.js Backend with Amazon SES SMTP)
   contact_service:
     build: ./contact
-    image: contact-service:latest
+    image: ${DOCKERHUB_NAMESPACE:-local}/contact:${CONTACT_IMAGE_TAG:-latest}
     container_name: contact_service
     expose:
       - "3000"

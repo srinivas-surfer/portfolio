@@ -12,11 +12,15 @@ Dockerized portfolio site split into small services:
 
 The root `docker-compose.yml` is the primary local orchestration file. It runs all services on a shared Docker network named `gateway_default`.
 
-## CI/CD Pilot
+## CI/CD
 
-Phase 1 CI/CD is implemented for `portfolio_service` only.
+CI/CD is implemented for:
 
-The pilot uses:
+- `portfolio_service`
+- gateway services `db` and `npm`
+- `contact_service`
+
+The pipelines use:
 
 - GitHub Actions on a self-hosted runner
 - PR code validation before merge
@@ -24,7 +28,9 @@ The pilot uses:
 - Docker Hub login, image build, push, and logout
 - Immutable Git SHA image tags
 - Deploy approval through the `production-deploy` GitHub environment
-- Docker Hub pull and deployment of only `portfolio_service`
+- Docker Hub pull and deployment of only the targeted service
+- Gateway port conflict validation before Nginx Proxy Manager deployment
+- Contact runtime environment rendering from GitHub Secrets
 - N-1 local cleanup for rollback readiness
 
 Required GitHub Secrets:
@@ -33,6 +39,16 @@ Required GitHub Secrets:
 DOCKERHUB_USERNAME
 DOCKERHUB_TOKEN
 DOCKERHUB_NAMESPACE
+NPM_DB_PASSWORD
+NPM_DB_ROOT_PASSWORD
+SMTP_HOST
+SMTP_PORT
+SMTP_SECURE
+SMTP_USER
+SMTP_PASS
+SES_FROM_EMAIL
+SES_TO_EMAIL
+CORS_ORIGIN
 ```
 
 Deployment scripts live in `deployment/scripts/`. Workflow logic should only orchestrate those scripts.
@@ -88,6 +104,7 @@ For CI/CD deployment, the workflow sets:
 ```text
 DOCKERHUB_NAMESPACE=<dockerhub-namespace>
 PORTFOLIO_IMAGE_TAG=<git-sha>
+CONTACT_IMAGE_TAG=<git-sha>
 ```
 
 Open the Nginx Proxy Manager admin UI:
@@ -117,6 +134,14 @@ Create these proxy hosts in Nginx Proxy Manager:
 | `blog.localhost` | `blog_service` | `80` |
 
 The contact form posts to `/api/contact` on the portfolio service. The portfolio Nginx config proxies that path to `contact_service:3000`.
+
+Production portfolio domain example:
+
+```text
+portfolio.srinivaspitchubabu.click -> portfolio_service:80
+```
+
+Use Nginx Proxy Manager to redirect `/` to `/portfolio` if that path is required.
 
 ## Useful Commands
 
