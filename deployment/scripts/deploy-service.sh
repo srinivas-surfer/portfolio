@@ -57,7 +57,7 @@ export "${IMAGE_TAG_ENV_VAR}=${IMAGE_TAG}"
 export DOCKERHUB_NAMESPACE
 
 log "INFO" "Deploying only compose service: $COMPOSE_SERVICE"
-compose up -d --no-build "$COMPOSE_SERVICE"
+compose up -d --no-build --no-deps "$COMPOSE_SERVICE"
 
 docker_logout
 trap - EXIT
