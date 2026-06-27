@@ -1,5 +1,149 @@
 #!/usr/bin/env bash
 
+common_log() {
+  if declare -F log >/dev/null 2>&1; then
+    log "$1" "$2"
+  else
+    printf '[%s] %s\n' "$1" "$2"
+  fi
+}
+
+sudo_available() {
+  command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1
+}
+
+docker_cli_available() {
+  command -v docker >/dev/null 2>&1
+}
+
+install_docker_amazon_linux() {
+  if docker_cli_available; then
+    return
+  fi
+
+  sudo_available || return 1
+
+  common_log "INFO" "Docker is missing. Installing Docker with the available Amazon Linux package manager."
+  if command -v yum >/dev/null 2>&1; then
+    sudo -n yum install -y docker
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo -n dnf install -y docker
+  else
+    return 1
+  fi
+}
+
+start_docker_service() {
+  docker_cli_available || return 1
+
+  if command docker info >/dev/null 2>&1; then
+    DOCKER_USE_SUDO="false"
+    return
+  fi
+
+  if sudo_available && sudo -n docker info >/dev/null 2>&1; then
+    DOCKER_USE_SUDO="true"
+    return
+  fi
+
+  sudo_available || return 1
+
+  if command -v systemctl >/dev/null 2>&1; then
+    common_log "INFO" "Docker daemon is not reachable. Enabling and starting Docker service."
+    sudo -n systemctl enable docker
+    sudo -n systemctl start docker
+  elif command -v service >/dev/null 2>&1; then
+    common_log "INFO" "Docker daemon is not reachable. Starting Docker service."
+    sudo -n service docker start
+  else
+    return 1
+  fi
+}
+
+select_docker_mode() {
+  docker_cli_available || return 1
+
+  if command docker info >/dev/null 2>&1; then
+    DOCKER_USE_SUDO="false"
+    return 0
+  fi
+
+  if sudo_available && sudo -n docker info >/dev/null 2>&1; then
+    DOCKER_USE_SUDO="true"
+    common_log "WARN" "Using passwordless sudo for Docker commands because the runner user cannot access Docker directly."
+    return 0
+  fi
+
+  return 1
+}
+
+docker() {
+  if [[ "${DOCKER_USE_SUDO:-}" == "true" ]]; then
+    sudo -n docker "$@"
+  else
+    command docker "$@"
+  fi
+}
+
+install_compose_plugin() {
+  compose_available && return 0
+  docker_cli_available || return 1
+  sudo_available || return 1
+
+  local arch compose_arch
+  arch=$(uname -m)
+  case "$arch" in
+    x86_64) compose_arch="x86_64" ;;
+    aarch64 | arm64) compose_arch="aarch64" ;;
+    *) return 1 ;;
+  esac
+
+  command -v curl >/dev/null 2>&1 || {
+    common_log "INFO" "curl is missing. Installing curl."
+    if command -v yum >/dev/null 2>&1; then
+      sudo -n yum install -y curl
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo -n dnf install -y curl
+    else
+      return 1
+    fi
+  }
+
+  common_log "INFO" "Docker Compose is missing. Installing Docker Compose V2 plugin for $arch."
+  sudo -n mkdir -p /usr/local/lib/docker/cli-plugins
+  sudo -n curl -fSL \
+    "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-${compose_arch}" \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  sudo -n chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+}
+
+ensure_docker_stack() {
+  install_docker_amazon_linux || {
+    compose_install_hint
+    return 1
+  }
+
+  start_docker_service || {
+    compose_install_hint
+    return 1
+  }
+
+  select_docker_mode || {
+    compose_install_hint
+    return 1
+  }
+
+  install_compose_plugin || {
+    compose_install_hint
+    return 1
+  }
+
+  compose_available || {
+    compose_install_hint
+    return 1
+  }
+}
+
 compose() {
   if docker compose version >/dev/null 2>&1; then
     docker compose "$@"
@@ -7,7 +151,11 @@ compose() {
   fi
 
   if command -v docker-compose >/dev/null 2>&1; then
-    docker-compose "$@"
+    if [[ "${DOCKER_USE_SUDO:-}" == "true" ]]; then
+      sudo -n docker-compose "$@"
+    else
+      docker-compose "$@"
+    fi
     return
   fi
 
@@ -15,7 +163,8 @@ compose() {
 }
 
 compose_available() {
-  docker compose version >/dev/null 2>&1 || command -v docker-compose >/dev/null 2>&1
+  docker_cli_available && docker compose version >/dev/null 2>&1 && return 0
+  command -v docker-compose >/dev/null 2>&1
 }
 
 compose_version() {
@@ -36,7 +185,9 @@ compose_install_hint() {
   cat <<'EOF'
 Docker Compose is not available on this runner.
 
-Amazon Linux install option:
+The pipeline is allowed to install/start Docker and install Docker Compose, but it will not modify or restart the GitHub runner.
+
+Amazon Linux manual install option:
   sudo yum install -y docker
   sudo systemctl enable docker
   sudo systemctl start docker
@@ -48,9 +199,6 @@ Amazon Linux install option:
   docker compose version
 
 If Docker permission is denied:
-  sudo usermod -aG docker ec2-user
-  newgrp docker
-
-Restart the GitHub runner after changing Docker group membership.
+  configure passwordless sudo for Docker or run the GitHub runner as a user that already has Docker access.
 EOF
 }

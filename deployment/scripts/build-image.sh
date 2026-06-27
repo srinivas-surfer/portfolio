@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 START_TIME=$(date +%s)
 STAGE="Docker Build"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/common.sh"
 
 log() {
   printf '[%s] %s\n' "$1" "$2"
@@ -37,6 +40,8 @@ log "INFO" "START $STAGE"
 for var in SERVICE_NAME SERVICE_PATH IMAGE_NAME DOCKERHUB_USERNAME DOCKERHUB_TOKEN DOCKERHUB_NAMESPACE; do
   require_env "$var"
 done
+
+ensure_docker_stack || fail "Docker/Compose bootstrap failed."
 
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)}"
 IMAGE_REPOSITORY="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"

@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 START_TIME=$(date +%s)
 STAGE="Application Validation"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/common.sh"
 
 log() {
   printf '[%s] %s\n' "$1" "$2"
@@ -33,6 +36,8 @@ log "INFO" "START $STAGE"
 for var in SERVICE_NAME COMPOSE_SERVICE IMAGE_NAME IMAGE_TAG DOCKERHUB_NAMESPACE; do
   require_env "$var"
 done
+
+ensure_docker_stack || fail "Docker/Compose bootstrap failed."
 
 CONTAINER_NAME="${CONTAINER_NAME:-$COMPOSE_SERVICE}"
 HEALTH_CHECK_MODE="${HEALTH_CHECK_MODE:-container-exec}"

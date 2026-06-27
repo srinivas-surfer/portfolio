@@ -97,4 +97,4 @@ sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 docker compose version
 ```
 
-Restart the GitHub runner after Docker or group membership changes.
+Do not restart or modify the GitHub runner from the pipeline. If direct Docker access is not available, configure passwordless sudo outside the pipeline or run the runner under a user that already has Docker access.

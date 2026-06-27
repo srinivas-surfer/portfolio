@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 START_TIME=$(date +%s)
 STAGE="Cleanup"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/common.sh"
 
 log() {
   printf '[%s] %s\n' "$1" "$2"
@@ -33,6 +36,8 @@ log "INFO" "START $STAGE"
 for var in SERVICE_NAME IMAGE_NAME DOCKERHUB_NAMESPACE; do
   require_env "$var"
 done
+
+ensure_docker_stack || fail "Docker/Compose bootstrap failed."
 
 IMAGE_REPOSITORY="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
 release_file="deployment/releases/${SERVICE_NAME}.history"

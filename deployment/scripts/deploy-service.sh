@@ -41,6 +41,8 @@ for var in SERVICE_NAME COMPOSE_SERVICE IMAGE_NAME IMAGE_TAG IMAGE_TAG_ENV_VAR D
   require_env "$var"
 done
 
+ensure_docker_stack || fail "Docker/Compose bootstrap failed."
+
 IMAGE_REPOSITORY="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
 IMAGE_REF="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
 
@@ -55,10 +57,6 @@ export "${IMAGE_TAG_ENV_VAR}=${IMAGE_TAG}"
 export DOCKERHUB_NAMESPACE
 
 log "INFO" "Deploying only compose service: $COMPOSE_SERVICE"
-if ! compose_available; then
-  compose_install_hint
-  fail "Docker Compose is not available."
-fi
 compose up -d --no-build "$COMPOSE_SERVICE"
 
 docker_logout
