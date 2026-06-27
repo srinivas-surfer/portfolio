@@ -1,16 +1,22 @@
 # Deployment Status
 
-Last source audit: June 25, 2026
+Last source audit: June 27, 2026
 
 This file records the expected deployment state from the repository configuration. It does not prove that containers are currently running on any host.
 
-## CI/CD Pilot State
+## CI/CD State
 
-Phase 1 CI/CD is implemented only for `portfolio_service`.
+CI/CD is implemented for:
 
-The portfolio pipeline builds and pushes Docker Hub images, deploys an immutable Git SHA tag, validates the running container, and performs local N-1 cleanup.
+- `portfolio_service`
+- gateway services `db` and `npm`
+- `contact_service`
 
-Other services still use the existing manual/local deployment model until their pipelines are separately approved and implemented.
+The portfolio and contact pipelines build and push Docker Hub images, deploy immutable Git SHA tags, validate running containers, and perform local N-1 cleanup.
+
+The gateway pipeline deploys Nginx Proxy Manager and its MariaDB database after validating host ports `80`, `81`, and `443`.
+
+Experience, projects, blog, and the master pipeline still use the existing manual/local deployment model until their pipelines are separately approved and implemented.
 
 ## Expected Services
 
@@ -42,7 +48,7 @@ Admin UI:
 http://localhost:81
 ```
 
-## Start
+## Start Locally
 
 ```bash
 cp contact/.env.example contact/.env
@@ -94,7 +100,10 @@ docker compose down -v
 
 ## Deployment Checklist
 
-- [ ] Set real Amazon SES SMTP values in `contact/.env` or production environment variables.
+- [ ] Configure GitHub Secrets for Docker Hub, gateway database, and contact SMTP.
+- [ ] Run the gateway workflow to start `db` and `npm`.
+- [ ] Run the portfolio workflow to deploy `portfolio_service`.
+- [ ] Run the contact workflow to deploy `contact_service`.
 - [ ] Configure Nginx Proxy Manager proxy hosts.
 - [ ] Change the default Nginx Proxy Manager admin password.
 - [ ] Restrict port `81` to trusted IP ranges.

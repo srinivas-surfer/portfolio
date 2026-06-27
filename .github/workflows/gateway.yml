@@ -1,0 +1,77 @@
+name: Gateway Service CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "gateway/**"
+      - "docker-compose.yml"
+      - "deployment/scripts/**"
+      - ".github/workflows/gateway.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TARGET_BRANCH: main
+  SERVICE_NAME: gateway
+  SERVICE_PATH: gateway
+  COMPOSE_SERVICE: npm
+  REQUIRED_COMPOSE_SERVICES: db,npm
+  REQUIRE_IMAGE_CONFIG: "false"
+  REQUIRE_SERVICE_DOCKERFILE: "false"
+  REQUIRED_ENV_VARS: NPM_DB_PASSWORD,NPM_DB_ROOT_PASSWORD
+  MIN_MEMORY_MB: "256"
+  GATEWAY_PORTS: 80,81,443
+  ALLOWED_PORT_OWNER_CONTAINERS: npm
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  NPM_DB_PASSWORD: ${{ secrets.NPM_DB_PASSWORD }}
+  NPM_DB_ROOT_PASSWORD: ${{ secrets.NPM_DB_ROOT_PASSWORD }}
+
+jobs:
+  pre-validation:
+    name: Pre-deploy validation
+    runs-on: self-hosted
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Run pre-validation
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/pre-validation.sh
+
+  deploy:
+    name: Deploy gateway services
+    runs-on: self-hosted
+    needs: pre-validation
+    environment: production-deploy
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Synchronize repository
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/git-sync.sh
+
+      - name: Validate gateway ports
+        run: deployment/scripts/validate-gateway-ports.sh
+
+      - name: Deploy gateway services
+        run: deployment/scripts/deploy-gateway.sh
+
+      - name: Validate gateway services
+        run: deployment/scripts/validate-gateway.sh
+
+      - name: Cleanup dangling gateway images
+        run: deployment/scripts/cleanup-gateway.sh

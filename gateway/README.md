@@ -9,6 +9,14 @@ cd gateway
 docker compose -f docker-compose.proxy-manager.yml up -d
 ```
 
+Production deployment is handled by the root workflow:
+
+```text
+.github/workflows/gateway.yml
+```
+
+That workflow deploys only `db` and `npm` from the root `docker-compose.yml` after checking that host ports `80`, `81`, and `443` are free or already owned by the `npm` container.
+
 Admin UI:
 
 ```text
