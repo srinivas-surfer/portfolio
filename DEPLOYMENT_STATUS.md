@@ -15,7 +15,7 @@ CI/CD is implemented for:
 - `contact_service`
 - manual full-platform master deployment
 
-The service pipelines build and push Docker Hub images, deploy immutable Git SHA tags, validate running containers, and perform local N-1 cleanup.
+The service pipelines build and push Docker Hub images, deploy immutable Git SHA tags, validate running containers, and perform local N-1 cleanup. Deployment pipelines are manual-only after merge to `main`; PR code validation remains automatic on pull requests.
 
 The public gateway is Route 53 and CloudFront. `portfolio_service` publishes EC2 host port `80` as the CloudFront origin.
 
@@ -42,6 +42,8 @@ https://portfolio.srinivaspitchubabu.click/projects/
 https://portfolio.srinivaspitchubabu.click/experience/
 https://portfolio.srinivaspitchubabu.click/contact.html
 ```
+
+These pages are expected to render responsively across desktop, tablet, and mobile breakpoints. The navbar collapses into a mobile menu on smaller screens.
 
 ## Start Locally
 

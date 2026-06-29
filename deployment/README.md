@@ -15,6 +15,7 @@ Implemented:
 - Experience service build and deploy workflow
 - Contact service build and deploy workflow
 - Manual master platform workflow
+- Manual-only service deployment after merge to `main`
 - Build approval gate
 - Docker Hub login, push, and logout
 - Docker Hub image validation
@@ -65,6 +66,23 @@ production-deploy
 `build-approval` gates image creation and Docker Hub push.
 
 `production-deploy` gates the service restart and production deployment.
+
+## Trigger Model
+
+Pull requests to `main` run code validation automatically.
+
+Deployment workflows are manual-only:
+
+```text
+portfolio.yml
+blog.yml
+projects.yml
+experience.yml
+contact.yml
+master.yml
+```
+
+After a PR is approved and merged to `main`, start the required service workflow or the master workflow from the GitHub Actions UI.
 
 ## EC2 Runner Prerequisites
 
@@ -315,3 +333,25 @@ deployment summary
 ```
 
 Builds and deployments run sequentially to avoid memory pressure on the single EC2 runner.
+
+## Frontend Responsive Changes
+
+Responsive UI updates are deployed through the affected service workflows:
+
+```text
+portfolio.yml
+blog.yml
+projects.yml
+experience.yml
+```
+
+Use the master workflow when all frontend services should be rolled out together. After deployment, invalidate CloudFront paths when cached CSS or HTML needs to refresh quickly:
+
+```text
+/
+/contact.html
+/style.css
+/blog/*
+/projects/*
+/experience/*
+```

@@ -1,14 +1,6 @@
 name: Experience Service CI/CD
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "experience/**"
-      - "docker-compose.yml"
-      - "deployment/scripts/**"
-      - ".github/workflows/experience.yml"
   workflow_dispatch:
 
 permissions:

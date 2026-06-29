@@ -116,6 +116,10 @@ If portfolio rollback is required, roll back `portfolio_service` to the previous
 
 Legacy Nginx Proxy Manager containers are removed by the portfolio workflow, but their Docker volumes are not deleted. They should remain unused unless a separate, approved rollback to the old NPM architecture is planned.
 
+## Frontend UI Rollback
+
+Responsive UI changes roll back the same way as any other service image change. Roll back only the affected service image unless a coordinated frontend release was deployed through the master workflow.
+
 ## Important Limits
 
 - The pipelines do not delete Docker Hub tags.

@@ -1,14 +1,6 @@
 name: Blog Service CI/CD
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "blog/**"
-      - "docker-compose.yml"
-      - "deployment/scripts/**"
-      - ".github/workflows/blog.yml"
   workflow_dispatch:
 
 permissions:

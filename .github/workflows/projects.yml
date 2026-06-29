@@ -1,14 +1,6 @@
 name: Projects Service CI/CD
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "projects/**"
-      - "docker-compose.yml"
-      - "deployment/scripts/**"
-      - ".github/workflows/projects.yml"
   workflow_dispatch:
 
 permissions:
