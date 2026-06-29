@@ -8,6 +8,7 @@ Developer branch
   -> PR code validation
   -> PR approval
   -> Merge to main
+  -> Manual service or master workflow dispatch
   -> Service pre-validation
   -> Build approval
   -> Docker build, when the service owns an image
@@ -39,10 +40,9 @@ This workflow never deploys, restarts containers, or modifies production state.
 
 ### `portfolio.yml`
 
-Runs on:
+Runs only on manual `workflow_dispatch`.
 
-- push to `main` when `portfolio/**`, `docker-compose.yml`, `deployment/scripts/**`, or the workflow changes
-- manual `workflow_dispatch`
+Merging to `main` does not automatically build or deploy portfolio.
 
 Jobs:
 
@@ -62,8 +62,9 @@ Each static content service has its own workflow.
 
 Runs on:
 
-- push to `main` when its service folder, `docker-compose.yml`, `deployment/scripts/**`, or its workflow changes
 - manual `workflow_dispatch`
+
+Merging to `main` does not automatically build or deploy static content services.
 
 Jobs:
 
@@ -94,10 +95,9 @@ The `deploy` job uses the `production-deploy` environment.
 
 ### `contact.yml`
 
-Runs on:
+Runs only on manual `workflow_dispatch`.
 
-- push to `main` when `contact/**`, `docker-compose.yml`, `deployment/scripts/**`, or the workflow changes
-- manual `workflow_dispatch`
+Merging to `main` does not automatically build or deploy contact.
 
 Jobs:
 
@@ -213,3 +213,5 @@ Deployment scripts use `docker compose up -d --no-build --no-deps <service>` so 
 The portfolio workflow also runs a one-time legacy gateway decommission step so old `npm` and `db` containers do not block EC2 host port `80`. The active public gateway is AWS CloudFront, not a Docker service.
 
 The master workflow is the exception to the single-service deployment rule because it is explicitly requested as a full-platform deployment. Even there, each service is deployed through the same targeted `--no-deps` command.
+
+Frontend responsive changes should deploy only the services whose HTML, CSS, or JS changed. Use the master workflow only when a coordinated full frontend rollout is intended.

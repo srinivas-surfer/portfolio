@@ -1,14 +1,6 @@
 name: Contact Service CI/CD
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "contact/**"
-      - "docker-compose.yml"
-      - "deployment/scripts/**"
-      - ".github/workflows/contact.yml"
   workflow_dispatch:
 
 permissions:

@@ -27,6 +27,7 @@ The pipelines use:
 
 - GitHub Actions on a self-hosted runner
 - PR code validation before merge
+- Manual service or master deployment after merge to `main`
 - Build approval through the `build-approval` GitHub environment
 - Docker Hub login, image build, push, and logout
 - Immutable Git SHA image tags
@@ -83,6 +84,21 @@ portfolio_service
 ```
 
 `portfolio_service` publishes EC2 host port `80` for CloudFront origin traffic. Blog, projects, experience, and contact remain private to the Docker network.
+
+## Responsive UI
+
+The frontend services use responsive navigation, fluid sections, mobile-friendly cards, and touch-sized controls for desktop, tablet, and mobile layouts.
+
+Responsive UI changes affect:
+
+```text
+portfolio_service
+blog_service
+projects_service
+experience_service
+```
+
+Deploy affected service workflows individually, or use the master workflow for a coordinated frontend rollout.
 
 ## Run Locally
 

@@ -31,3 +31,53 @@
 .footer{padding:22px;display:flex;justify-content:space-between;align-items:center;max-width:1100px;margin:24px auto 40px;border-top:1px solid #222}
 /* Light */
 body.light{--bg:#f6f6f8;--card:#ffffff;--text:#101014;--muted:#4b4b4f;--accent:#7b68ee;--accent2:#2a9d8f}
+
+html{scroll-behavior:smooth}
+body{overflow-x:hidden;line-height:1.6}
+img{max-width:100%;height:auto}
+.navbar{gap:14px}
+.brand{white-space:nowrap}
+.nav{display:flex;align-items:center;gap:4px}
+.nav a{display:inline-flex;align-items:center;min-height:44px}
+.nav-toggle{display:none;width:44px;height:44px;border:1px solid #2a2a2a;border-radius:12px;background:#101010;color:var(--text);align-items:center;justify-content:center;flex-direction:column;gap:5px;cursor:pointer}
+.nav-toggle span{display:block;width:20px;height:2px;border-radius:999px;background:currentColor;transition:transform .2s ease,opacity .2s ease}
+.nav-toggle.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-toggle.open span:nth-child(2){opacity:0}
+.nav-toggle.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.hero,.section{width:min(1100px,100%)}
+.hero h1{font-size:clamp(1.65rem,4vw,3.25rem);line-height:1.1;margin:0}
+.section-title{font-size:clamp(1.55rem,3vw,2.25rem);line-height:1.15}
+.card,.blog-card{overflow-wrap:anywhere}
+body.light .navbar,body.light .nav-toggle,body.light .socials a,body.light .socials .social-link,body.light .skill-card{background:#fff}
+
+@media (max-width: 900px){
+  .navbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;justify-content:normal;padding:10px 14px}
+  .nav-toggle{display:inline-flex}
+  .nav{grid-column:1 / -1;display:none;flex-direction:column;align-items:stretch;gap:4px;padding:10px 0 4px}
+  .nav.open{display:flex}
+  .nav a{margin:0;padding:10px 12px;border:1px solid #242428;border-radius:10px;background:#101010}
+  body.light .nav a{background:#fff;border-color:#dedee6}
+  .hero{padding:44px 16px}
+  .section{padding:36px 16px}
+  .footer{gap:18px;align-items:flex-start}
+}
+
+@media (max-width: 640px){
+  .navbar{grid-template-columns:minmax(0,1fr) auto auto;gap:8px}
+  #theme-toggle{min-height:42px}
+  .brand{white-space:normal;line-height:1.15}
+  .hero{padding:34px 14px}
+  .section{padding:30px 14px}
+  .cta-row{flex-direction:column;align-items:stretch}
+  .btn{text-align:center}
+  .skills-grid,.blog-grid{grid-template-columns:1fr;gap:14px;padding:0}
+  .skill-card img{width:52px;height:52px}
+  .card,.blog-card{padding:16px;border-radius:12px}
+  .footer{flex-direction:column;padding:18px 14px;margin:12px auto 28px}
+}
+
+@media (max-width: 420px){
+  .nav a{font-size:.95rem}
+  .hero,.section{padding-left:12px;padding-right:12px}
+  .card,.blog-card{padding:14px}
+}

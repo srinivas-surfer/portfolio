@@ -10,7 +10,12 @@
 <body>
   <header class="navbar">
     <a class="brand" href="/">Srinivas Pitchubabu</a>
-    <nav class="nav">
+    <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-controls="primary-nav" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <nav id="primary-nav" class="nav">
       <a href="/#hero">About</a>
       <a href="/experience/">Experience</a>
       <a href="/projects/">Projects</a>
@@ -24,29 +29,29 @@
     <h1 class="section-title">Opportunities &amp; Contact</h1>
     <p>Have an exciting SRE, DevOps, or Cloud opportunity? I would love to hear from you.</p>
 
-    <form id="contact-form" class="card" style="max-width: 600px; margin: 2rem auto;">
-      <div style="margin-bottom: 1.5rem;">
-        <label for="name" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Name</label>
-        <input type="text" id="name" name="name" required style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px;">
+    <form id="contact-form" class="card contact-form">
+      <div class="form-field">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" required>
       </div>
 
-      <div style="margin-bottom: 1.5rem;">
-        <label for="email" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Email</label>
-        <input type="email" id="email" name="email" required style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px;">
+      <div class="form-field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required>
       </div>
 
-      <div style="margin-bottom: 1.5rem;">
-        <label for="company" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Company</label>
-        <input type="text" id="company" name="company" style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px;">
+      <div class="form-field">
+        <label for="company">Company</label>
+        <input type="text" id="company" name="company">
       </div>
 
-      <div style="margin-bottom: 1.5rem;">
-        <label for="message" style="display: block; font-weight: bold; margin-bottom: 0.5rem;">Message</label>
-        <textarea id="message" name="message" rows="6" required style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-family: inherit;"></textarea>
+      <div class="form-field">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" rows="6" required></textarea>
       </div>
 
-      <button type="submit" class="btn primary" style="width: 100%;">Send Message</button>
-      <p id="form-status" style="margin-top: 1rem; text-align: center;"></p>
+      <button type="submit" class="btn primary">Send Message</button>
+      <p id="form-status" class="form-status"></p>
     </form>
   </main>
 

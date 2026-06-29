@@ -103,6 +103,20 @@ curl -i -X POST http://127.0.0.1/api/contact -H "Content-Type: application/json"
 
 The empty contact payload should return `400 Bad Request`; this confirms routing without sending mail.
 
+## Frontend Visual Regression
+
+If a responsive page layout breaks after deployment, first confirm which service owns the changed page:
+
+```text
+/              -> portfolio_service
+/contact.html  -> portfolio_service
+/blog/         -> blog_service
+/projects/     -> projects_service
+/experience/   -> experience_service
+```
+
+Rollback only the affected service image unless the master workflow deployed all frontend services together.
+
 ## CloudFront Origin Deploy Fails
 
 Check port ownership first:
