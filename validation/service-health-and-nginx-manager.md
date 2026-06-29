@@ -16,6 +16,9 @@ Active production containers:
 
 ```text
 portfolio_service
+blog_service
+projects_service
+experience_service
 contact_service
 ```
 
@@ -60,9 +63,9 @@ These checks run from inside the Docker network.
 
 ```bash
 docker run --rm --network app_default curlimages/curl:latest -fsS http://portfolio_service/
-docker run --rm --network app_default curlimages/curl:latest -fsS http://experience_service/ || true
-docker run --rm --network app_default curlimages/curl:latest -fsS http://projects_service/ || true
-docker run --rm --network app_default curlimages/curl:latest -fsS http://blog_service/ || true
+docker run --rm --network app_default curlimages/curl:latest -fsS http://experience_service/
+docker run --rm --network app_default curlimages/curl:latest -fsS http://projects_service/
+docker run --rm --network app_default curlimages/curl:latest -fsS http://blog_service/
 docker run --rm --network app_default curlimages/curl:latest -fsS http://contact_service:3000/health
 ```
 
@@ -78,6 +81,9 @@ Use logs when a service is not reachable.
 
 ```bash
 docker compose logs --tail=80 portfolio_service
+docker compose logs --tail=80 blog_service
+docker compose logs --tail=80 projects_service
+docker compose logs --tail=80 experience_service
 docker compose logs --tail=80 contact_service
 ```
 
@@ -128,8 +134,23 @@ Open:
 
 ```text
 https://portfolio.srinivaspitchubabu.click/
-https://portfolio.srinivaspitchubabu.click/portfolio
+https://portfolio.srinivaspitchubabu.click/blog/
+https://portfolio.srinivaspitchubabu.click/projects/
+https://portfolio.srinivaspitchubabu.click/experience/
+https://portfolio.srinivaspitchubabu.click/contact.html
 ```
+
+Local origin smoke checks:
+
+```bash
+curl -I http://127.0.0.1/
+curl -I http://127.0.0.1/blog/
+curl -I http://127.0.0.1/projects/
+curl -I http://127.0.0.1/experience/
+curl -i -X POST http://127.0.0.1/api/contact -H "Content-Type: application/json" -d '{}'
+```
+
+The empty contact payload should return `400 Bad Request`.
 
 If CloudFront returns `502`, check that EC2 port `80` is reachable from the CloudFront origin path.
 

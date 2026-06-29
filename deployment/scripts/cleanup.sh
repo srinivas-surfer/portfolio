@@ -18,7 +18,8 @@ done
 ensure_docker_stack || fail "Docker/Compose bootstrap failed."
 
 IMAGE_REPOSITORY="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
-release_file="deployment/releases/${SERVICE_NAME}.history"
+release_dir="${DEPLOYMENT_STATE_DIR:-deployment/releases}"
+release_file="${release_dir}/${SERVICE_NAME}.history"
 
 declare -A keep_tags
 keep_tags["latest"]=1

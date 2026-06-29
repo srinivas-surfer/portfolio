@@ -2,7 +2,7 @@
 
 This directory contains the CI/CD scripts for the application platform.
 
-The current implementation covers the first production services: `portfolio_service` and `contact_service`.
+The current implementation covers the production application services and a manual full-platform master deployment.
 
 ## Current Scope
 
@@ -10,7 +10,11 @@ Implemented:
 
 - PR code validation workflow
 - Portfolio service build and deploy workflow
+- Blog service build and deploy workflow
+- Projects service build and deploy workflow
+- Experience service build and deploy workflow
 - Contact service build and deploy workflow
+- Manual master platform workflow
 - Build approval gate
 - Docker Hub login, push, and logout
 - Docker Hub image validation
@@ -21,10 +25,10 @@ Implemented:
 - Contact runtime environment rendering from GitHub Secrets
 - Application validation
 - Local N-1 cleanup
+- Persistent local release history under `/home/ec2-user/portfolio-deployment/releases`
 
 Not implemented yet:
 
-- Blog, projects, experience, or master deployment workflows
 - Docker Hub remote tag cleanup
 - Rollback automation script
 - Portainer, Prometheus, or cAdvisor
@@ -88,7 +92,15 @@ The pipeline must be able to run Docker either directly or through passwordless 
 
 When passwordless sudo is required for Docker, the deployment scripts preserve only Compose image interpolation values such as `DOCKERHUB_NAMESPACE` and `*_IMAGE_TAG`. Docker Hub credentials are not forwarded into the sudo environment.
 
-On small EC2 instances, the portfolio and contact workflows set `ALLOW_SWAP_MEMORY=true`, so pre-validation counts free swap together with available RAM. This is intended for the current single-instance deployment where a 1 GB swap file is configured.
+On small EC2 instances, the service workflows set `ALLOW_SWAP_MEMORY=true`, so pre-validation counts free swap together with available RAM. This is intended for the current single-instance deployment where a 1 GB swap file is configured.
+
+The service workflows set:
+
+```text
+DEPLOYMENT_STATE_DIR=/home/ec2-user/portfolio-deployment/releases
+```
+
+This keeps release history outside the GitHub checkout workspace so N-1 cleanup can preserve the current and previous successful local image tags across workflow runs.
 
 Install Docker Compose V2 manually if `yum install docker-compose-plugin` is not available:
 
@@ -119,7 +131,7 @@ docker ps || sudo -n docker ps
 docker compose version || sudo -n docker compose version
 ```
 
-## Portfolio Runtime Image
+## Runtime Images
 
 `portfolio_service` uses an immutable image tag supplied at deploy time:
 
@@ -127,10 +139,19 @@ docker compose version || sudo -n docker compose version
 ${DOCKERHUB_NAMESPACE}/portfolio:${PORTFOLIO_IMAGE_TAG}
 ```
 
+The remaining app services use the same model:
+
+```text
+${DOCKERHUB_NAMESPACE}/blog:${BLOG_IMAGE_TAG}
+${DOCKERHUB_NAMESPACE}/projects:${PROJECTS_IMAGE_TAG}
+${DOCKERHUB_NAMESPACE}/experience:${EXPERIENCE_IMAGE_TAG}
+${DOCKERHUB_NAMESPACE}/contact:${CONTACT_IMAGE_TAG}
+```
+
 Local default:
 
 ```text
-local/portfolio:latest
+local/<service>:latest
 ```
 
 Pipeline deployment:
@@ -139,11 +160,21 @@ Pipeline deployment:
 <dockerhub-namespace>/portfolio:<git-sha>
 ```
 
-`portfolio_service` is intentionally deployable without `contact_service`. The compose deployment uses `--no-deps`, and the portfolio Nginx contact proxy resolves `contact_service` only when `/api/contact` is requested.
+Each service is intentionally deployable without restarting unrelated services. The compose deployment uses `--no-deps`. The portfolio Nginx route proxy resolves internal services only when their paths are requested.
 
 `contact_service` still requires real SMTP values for production use, but `contact/.env` is optional at compose render time so portfolio-only deployments are not blocked when the contact service is not part of the current release.
 
 `portfolio_service` publishes EC2 host port `80` and acts as the CloudFront origin. During portfolio deployment, the pipeline stops and removes legacy `npm` and `db` containers when `DECOMMISSION_LEGACY_GATEWAY=true`, leaving their Docker volumes intact.
+
+Portfolio path routing:
+
+```text
+/            -> portfolio_service
+/blog/       -> blog_service
+/projects/   -> projects_service
+/experience/ -> experience_service
+/api/contact -> contact_service
+```
 
 ## Contact Runtime Image
 
@@ -194,6 +225,15 @@ Configure a separate CloudFront behavior for:
 
 with all methods allowed and caching disabled.
 
+The normal default CloudFront behavior can serve:
+
+```text
+/
+/blog/*
+/projects/*
+/experience/*
+```
+
 ## Script Contract
 
 GitHub Actions orchestrates only. Deployment logic lives in:
@@ -236,3 +276,33 @@ IMAGE_TAG_ENV_VAR=CONTACT_IMAGE_TAG
 HEALTH_CHECK_MODE=container-exec
 HEALTH_URL=http://127.0.0.1:3000/health
 ```
+
+The static service workflows use the same contract:
+
+```text
+SERVICE_NAME=blog|projects|experience
+SERVICE_PATH=blog|projects|experience
+COMPOSE_SERVICE=<service>_service
+CONTAINER_NAME=<service>_service
+IMAGE_NAME=blog|projects|experience
+IMAGE_TAG_ENV_VAR=BLOG_IMAGE_TAG|PROJECTS_IMAGE_TAG|EXPERIENCE_IMAGE_TAG
+HEALTH_CHECK_MODE=container-exec
+HEALTH_URL=http://127.0.0.1/
+```
+
+## Master Pipeline
+
+The master workflow is manual and deploys the complete application platform.
+
+It runs:
+
+```text
+code validation
+platform pre-validation
+build all images
+deploy all services
+smoke tests
+deployment summary
+```
+
+Builds and deployments run sequentially to avoid memory pressure on the single EC2 runner.

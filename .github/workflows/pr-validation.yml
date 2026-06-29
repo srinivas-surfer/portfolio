@@ -13,6 +13,12 @@ jobs:
     name: Code validation
     runs-on: self-hosted
     steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
       - name: Checkout pull request
         uses: actions/checkout@v4
 
@@ -20,4 +26,3 @@ jobs:
         run: |
           chmod +x deployment/scripts/*.sh
           deployment/scripts/code-validation.sh
-

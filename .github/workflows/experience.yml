@@ -1,0 +1,134 @@
+name: Experience Service CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "experience/**"
+      - "docker-compose.yml"
+      - "deployment/scripts/**"
+      - ".github/workflows/experience.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TARGET_BRANCH: main
+  SERVICE_NAME: experience
+  SERVICE_PATH: experience
+  COMPOSE_SERVICE: experience_service
+  CONTAINER_NAME: experience_service
+  IMAGE_NAME: experience
+  IMAGE_TAG_ENV_VAR: EXPERIENCE_IMAGE_TAG
+  HEALTH_CHECK_MODE: container-exec
+  HEALTH_URL: http://127.0.0.1/
+  MIN_MEMORY_MB: "256"
+  ALLOW_SWAP_MEMORY: "true"
+  DEPLOYMENT_STATE_DIR: /home/ec2-user/portfolio-deployment/releases
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
+
+jobs:
+  pre-validation:
+    name: Pre-build validation
+    runs-on: self-hosted
+    steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Run pre-validation
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/pre-validation.sh
+
+  build:
+    name: Build and validate experience image
+    runs-on: self-hosted
+    needs: pre-validation
+    environment: build-approval
+    outputs:
+      image_tag: ${{ steps.build-image.outputs.image_tag }}
+      image_repository: ${{ steps.build-image.outputs.image_repository }}
+      image_id: ${{ steps.validate-image.outputs.image_id }}
+      image_digest: ${{ steps.validate-image.outputs.image_digest }}
+    steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Synchronize repository
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/git-sync.sh
+
+      - name: Build and push image
+        id: build-image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: deployment/scripts/build-image.sh
+
+      - name: Validate image
+        id: validate-image
+        env:
+          IMAGE_TAG: ${{ steps.build-image.outputs.image_tag }}
+          VALIDATE_IMAGE_STARTUP: "false"
+        run: deployment/scripts/validate-image.sh
+
+  deploy:
+    name: Deploy experience service
+    runs-on: self-hosted
+    needs: build
+    environment: production-deploy
+    steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Synchronize repository
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/git-sync.sh
+
+      - name: Deploy experience service
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+        run: deployment/scripts/deploy-service.sh
+
+      - name: Validate experience service
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+        run: deployment/scripts/validate-service.sh
+
+      - name: Cleanup old local experience images
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+        run: deployment/scripts/cleanup.sh

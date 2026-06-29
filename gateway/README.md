@@ -49,6 +49,15 @@ Allowed methods: GET, HEAD
 Cache policy: Managed-CachingOptimized or a short custom TTL during early rollout
 ```
 
+The default behavior reaches `portfolio_service`, which internally routes:
+
+```text
+/            -> portfolio_service
+/blog/       -> blog_service
+/projects/   -> projects_service
+/experience/ -> experience_service
+```
+
 Recommended behavior for the contact API:
 
 ```text

@@ -1,6 +1,6 @@
 # Recovery Guide
 
-This guide covers recovery for the implemented platform pipelines: portfolio and contact.
+This guide covers recovery for the implemented platform pipelines: portfolio, blog, projects, experience, contact, and the manual master workflow.
 
 ## Build Fails
 
@@ -10,6 +10,9 @@ Check:
 Docker daemon availability
 Docker Hub credentials
 portfolio/Dockerfile
+blog/Dockerfile
+projects/Dockerfile
+experience/Dockerfile
 contact/Dockerfile
 Docker Hub namespace
 runner disk and memory
@@ -48,6 +51,18 @@ docker compose logs --tail=80 contact_service
 docker image ls "<dockerhub-namespace>/contact"
 ```
 
+For static services:
+
+```bash
+docker compose ps blog_service projects_service experience_service
+docker compose logs --tail=80 blog_service
+docker compose logs --tail=80 projects_service
+docker compose logs --tail=80 experience_service
+docker image ls "<dockerhub-namespace>/blog"
+docker image ls "<dockerhub-namespace>/projects"
+docker image ls "<dockerhub-namespace>/experience"
+```
+
 The app deploy script targets only:
 
 ```text
@@ -73,6 +88,18 @@ For contact, also check that `contact/.env` exists on the EC2 runner and was gen
 ls -l contact/.env
 docker exec contact_service wget -qO- http://127.0.0.1:3000/health
 ```
+
+For hosted path validation through portfolio:
+
+```bash
+curl -I http://127.0.0.1/
+curl -I http://127.0.0.1/blog/
+curl -I http://127.0.0.1/projects/
+curl -I http://127.0.0.1/experience/
+curl -i -X POST http://127.0.0.1/api/contact -H "Content-Type: application/json" -d '{}'
+```
+
+The empty contact payload should return `400 Bad Request`; this confirms routing without sending mail.
 
 ## CloudFront Origin Deploy Fails
 

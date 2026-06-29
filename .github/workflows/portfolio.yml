@@ -26,6 +26,7 @@ env:
   HEALTH_URL: http://127.0.0.1/
   MIN_MEMORY_MB: "256"
   ALLOW_SWAP_MEMORY: "true"
+  DEPLOYMENT_STATE_DIR: /home/ec2-user/portfolio-deployment/releases
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
@@ -35,6 +36,12 @@ jobs:
     name: Pre-build validation
     runs-on: self-hosted
     steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
@@ -56,6 +63,12 @@ jobs:
       image_id: ${{ steps.validate-image.outputs.image_id }}
       image_digest: ${{ steps.validate-image.outputs.image_digest }}
     steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
@@ -87,6 +100,12 @@ jobs:
     needs: build
     environment: production-deploy
     steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
