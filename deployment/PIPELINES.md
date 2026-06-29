@@ -56,6 +56,42 @@ The `build` job uses the `build-approval` environment.
 
 The `deploy` job uses the `production-deploy` environment.
 
+### `blog.yml`, `projects.yml`, `experience.yml`
+
+Each static content service has its own workflow.
+
+Runs on:
+
+- push to `main` when its service folder, `docker-compose.yml`, `deployment/scripts/**`, or its workflow changes
+- manual `workflow_dispatch`
+
+Jobs:
+
+```text
+pre-validation
+build
+deploy
+```
+
+Each workflow builds and pushes:
+
+```text
+<namespace>/<service>:latest
+<namespace>/<service>:<git-sha>
+```
+
+Each deploy job targets only its matching Compose service with `--no-deps`:
+
+```text
+blog_service
+projects_service
+experience_service
+```
+
+The `build` job uses the `build-approval` environment.
+
+The `deploy` job uses the `production-deploy` environment.
+
 ### `contact.yml`
 
 Runs on:
@@ -88,6 +124,38 @@ The `build` job uses the `build-approval` environment.
 
 The `deploy` job uses the `production-deploy` environment.
 
+### `master.yml`
+
+Runs manually through `workflow_dispatch`.
+
+Purpose:
+
+- validate the complete platform
+- build all service images sequentially
+- deploy all service containers sequentially
+- run hosted path smoke tests
+- publish a deployment summary
+
+Execution order:
+
+```text
+validation
+build portfolio
+build blog
+build projects
+build experience
+build contact
+deploy portfolio
+deploy blog
+deploy projects
+deploy experience
+deploy contact
+smoke tests
+summary
+```
+
+The master workflow is intentionally sequential to reduce memory pressure on the single EC2 runner. It uses one `build-approval` gate for all builds and one `production-deploy` gate for all deployments.
+
 ## Docker Hub Authentication
 
 Build and deploy stages login to Docker Hub with:
@@ -115,6 +183,17 @@ The contact workflow pushes:
 <namespace>/contact:<git-sha>
 ```
 
+The blog, projects, and experience workflows use the same tag model:
+
+```text
+<namespace>/blog:latest
+<namespace>/blog:<git-sha>
+<namespace>/projects:latest
+<namespace>/projects:<git-sha>
+<namespace>/experience:latest
+<namespace>/experience:<git-sha>
+```
+
 Deployment uses the immutable Git SHA tag.
 
 ## Service Isolation
@@ -127,6 +206,10 @@ portfolio_service
 
 It must not restart `blog_service`, `projects_service`, `experience_service`, or `contact_service`.
 
+The blog, projects, experience, and contact workflows follow the same isolation rule for their own services.
+
 Deployment scripts use `docker compose up -d --no-build --no-deps <service>` so Compose recreates only the requested service. Portfolio no longer depends on `contact_service` at compose startup; contact remains a separately deployable service.
 
 The portfolio workflow also runs a one-time legacy gateway decommission step so old `npm` and `db` containers do not block EC2 host port `80`. The active public gateway is AWS CloudFront, not a Docker service.
+
+The master workflow is the exception to the single-service deployment rule because it is explicitly requested as a full-platform deployment. Even there, each service is deployed through the same targeted `--no-deps` command.

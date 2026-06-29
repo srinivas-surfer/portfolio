@@ -17,7 +17,7 @@ services:
   # Experience Service
   experience_service:
     build: ./experience
-    image: experience:latest
+    image: ${DOCKERHUB_NAMESPACE:-local}/experience:${EXPERIENCE_IMAGE_TAG:-latest}
     container_name: experience_service
     expose:
       - "80"
@@ -32,7 +32,7 @@ services:
   # Projects Service
   projects_service:
     build: ./projects
-    image: projects:latest
+    image: ${DOCKERHUB_NAMESPACE:-local}/projects:${PROJECTS_IMAGE_TAG:-latest}
     container_name: projects_service
     expose:
       - "80"
@@ -47,7 +47,7 @@ services:
   # Blog Service
   blog_service:
     build: ./blog
-    image: blog:latest
+    image: ${DOCKERHUB_NAMESPACE:-local}/blog:${BLOG_IMAGE_TAG:-latest}
     container_name: blog_service
     expose:
       - "80"

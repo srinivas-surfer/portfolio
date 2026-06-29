@@ -17,8 +17,20 @@ required_paths=(
   "docker-compose.yml"
   "portfolio/Dockerfile"
   "portfolio/index.html"
+  "blog/Dockerfile"
+  "blog/blog.html"
+  "projects/Dockerfile"
+  "projects/projects.html"
+  "experience/Dockerfile"
+  "experience/experience.html"
   "contact/package.json"
   "contact/.env.example"
+  ".github/workflows/portfolio.yml"
+  ".github/workflows/blog.yml"
+  ".github/workflows/projects.yml"
+  ".github/workflows/experience.yml"
+  ".github/workflows/contact.yml"
+  ".github/workflows/master.yml"
 )
 
 for path in "${required_paths[@]}"; do

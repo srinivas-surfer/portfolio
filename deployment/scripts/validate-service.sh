@@ -87,10 +87,11 @@ log "INFO" "Health check passed on attempt $health_attempt."
 exposed_ports=$(docker inspect "$CONTAINER_NAME" --format '{{json .Config.ExposedPorts}}')
 log "INFO" "Exposed ports: $exposed_ports"
 
-mkdir -p deployment/releases
+release_dir="${DEPLOYMENT_STATE_DIR:-deployment/releases}"
+mkdir -p "$release_dir"
 image_id=$(docker image inspect "$IMAGE_REF" --format '{{.Id}}')
 image_digest=$(docker image inspect "$IMAGE_REF" --format '{{range .RepoDigests}}{{println .}}{{end}}' | head -n 1)
-release_file="deployment/releases/${SERVICE_NAME}.history"
+release_file="${release_dir}/${SERVICE_NAME}.history"
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 workflow_run_id="${GITHUB_RUN_ID:-local}"
 

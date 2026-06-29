@@ -35,14 +35,17 @@ portfolio_service:80
 
 portfolio_service
   |
+  +-- /blog -> blog_service:80
+  +-- /projects -> projects_service:80
+  +-- /experience -> experience_service:80
   +-- /api/contact -> contact_service:3000
 ```
 
-The contact API is intentionally private by default. Public traffic reaches it only through the portfolio service's `/api/contact` proxy.
+Blog, projects, experience, and the contact API are intentionally private by default. Public traffic reaches them only through the portfolio service's path proxy.
 
 ## CI/CD Architecture
 
-CI/CD is currently implemented for `portfolio_service` and `contact_service`.
+CI/CD is implemented for `portfolio_service`, `blog_service`, `projects_service`, `experience_service`, `contact_service`, and a manual master platform deployment.
 
 ```text
 Pull Request
@@ -78,12 +81,15 @@ Pull immutable SHA image
 docker compose up -d --no-build --no-deps <service>
 ```
 
-App pipelines do not restart unrelated services. Other service pipelines will be added only after their designs are reviewed and approved.
+App pipelines do not restart unrelated services. The master workflow is the approved full-platform deployment path and deploys services sequentially.
 
 Parameterized services for Docker Hub SHA deployment:
 
 ```text
 ${DOCKERHUB_NAMESPACE}/portfolio:${PORTFOLIO_IMAGE_TAG}
+${DOCKERHUB_NAMESPACE}/blog:${BLOG_IMAGE_TAG}
+${DOCKERHUB_NAMESPACE}/projects:${PROJECTS_IMAGE_TAG}
+${DOCKERHUB_NAMESPACE}/experience:${EXPERIENCE_IMAGE_TAG}
 ${DOCKERHUB_NAMESPACE}/contact:${CONTACT_IMAGE_TAG}
 ```
 

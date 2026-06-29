@@ -11,7 +11,13 @@ N   = current successful deployment
 N-1 = previous successful deployment
 ```
 
-The deployment history is written locally on the self-hosted runner:
+The deployment history is written locally on the self-hosted runner. Workflows set:
+
+```text
+DEPLOYMENT_STATE_DIR=/home/ec2-user/portfolio-deployment/releases
+```
+
+Default script fallback when this variable is not set:
 
 ```text
 deployment/releases/<service>.history
@@ -27,12 +33,25 @@ Portfolio:
 
 ```text
 deployment/releases/portfolio.history
+/home/ec2-user/portfolio-deployment/releases/portfolio.history
 ```
 
 Contact:
 
 ```text
 deployment/releases/contact.history
+/home/ec2-user/portfolio-deployment/releases/contact.history
+```
+
+Static services:
+
+```text
+deployment/releases/blog.history
+deployment/releases/projects.history
+deployment/releases/experience.history
+/home/ec2-user/portfolio-deployment/releases/blog.history
+/home/ec2-user/portfolio-deployment/releases/projects.history
+/home/ec2-user/portfolio-deployment/releases/experience.history
 ```
 
 Then deploy that tag. Portfolio example:
@@ -53,12 +72,32 @@ docker pull "$DOCKERHUB_NAMESPACE/contact:$CONTACT_IMAGE_TAG"
 docker compose up -d --no-build --no-deps contact_service
 ```
 
+Blog example:
+
+```bash
+export DOCKERHUB_NAMESPACE=<dockerhub-namespace>
+export BLOG_IMAGE_TAG=<previous-sha>
+docker pull "$DOCKERHUB_NAMESPACE/blog:$BLOG_IMAGE_TAG"
+docker compose up -d --no-build --no-deps blog_service
+```
+
+Projects and experience follow the same pattern with `PROJECTS_IMAGE_TAG` / `projects_service` and `EXPERIENCE_IMAGE_TAG` / `experience_service`.
+
 Validate:
 
 ```bash
 docker ps --filter name=portfolio_service
 docker logs --tail=50 portfolio_service
 docker exec portfolio_service wget -qO- http://127.0.0.1/
+```
+
+Hosted path validation:
+
+```bash
+curl -I http://127.0.0.1/
+curl -I http://127.0.0.1/blog/
+curl -I http://127.0.0.1/projects/
+curl -I http://127.0.0.1/experience/
 ```
 
 Contact validation:

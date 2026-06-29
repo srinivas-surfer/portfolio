@@ -18,7 +18,11 @@ The root `docker-compose.yml` is the primary local orchestration file. It runs a
 CI/CD is implemented for:
 
 - `portfolio_service`
+- `blog_service`
+- `projects_service`
+- `experience_service`
 - `contact_service`
+- full-platform master deployment
 
 The pipelines use:
 
@@ -32,6 +36,7 @@ The pipelines use:
 - Contact runtime environment rendering from GitHub Secrets
 - Legacy Nginx Proxy Manager decommission before portfolio takes host port `80`
 - N-1 local cleanup for rollback readiness
+- Sequential master deployment for complete platform releases
 
 Required GitHub Secrets:
 
@@ -72,10 +77,13 @@ portfolio_service:80
 
 portfolio_service
   |
+  +-- /blog -> blog_service:80
+  +-- /projects -> projects_service:80
+  +-- /experience -> experience_service:80
   +-- /api/contact -> contact_service:3000
 ```
 
-`portfolio_service` publishes EC2 host port `80` for CloudFront origin traffic. `contact_service` remains private to the Docker network.
+`portfolio_service` publishes EC2 host port `80` for CloudFront origin traffic. Blog, projects, experience, and contact remain private to the Docker network.
 
 ## Run Locally
 
@@ -93,10 +101,10 @@ Start the full stack:
 docker compose up -d --build
 ```
 
-For local builds, `portfolio_service` defaults to:
+For local builds, service images default to:
 
 ```text
-local/portfolio:latest
+local/<service>:latest
 ```
 
 For CI/CD deployment, the workflow sets:
@@ -104,6 +112,9 @@ For CI/CD deployment, the workflow sets:
 ```text
 DOCKERHUB_NAMESPACE=<dockerhub-namespace>
 PORTFOLIO_IMAGE_TAG=<git-sha>
+BLOG_IMAGE_TAG=<git-sha>
+PROJECTS_IMAGE_TAG=<git-sha>
+EXPERIENCE_IMAGE_TAG=<git-sha>
 CONTACT_IMAGE_TAG=<git-sha>
 ```
 
@@ -119,15 +130,17 @@ portfolio.srinivaspitchubabu.click -> Route 53 alias -> CloudFront -> EC2 origin
 
 Use a separate origin DNS record or the EC2 public DNS for the CloudFront origin. Do not point the CloudFront origin at the same hostname that aliases back to CloudFront.
 
-The contact form posts to `/api/contact` on the portfolio service. The portfolio Nginx config proxies that path to `contact_service:3000`.
-
-Production portfolio domain example:
+The portfolio service handles public path routing:
 
 ```text
-portfolio.srinivaspitchubabu.click -> portfolio_service:80
+/            -> portfolio_service
+/blog/       -> blog_service
+/projects/   -> projects_service
+/experience/ -> experience_service
+/api/contact -> contact_service
 ```
 
-Use CloudFront or the portfolio Nginx config to redirect `/` to `/portfolio` if that path is required.
+Configure `/api/contact*` in CloudFront with all HTTP methods allowed and caching disabled. Static page paths can use normal caching.
 
 ## Useful Commands
 
@@ -135,6 +148,9 @@ Use CloudFront or the portfolio Nginx config to redirect `/` to `/portfolio` if 
 docker compose ps
 docker compose logs -f portfolio_service
 docker compose logs -f contact_service
+docker compose logs -f blog_service
+docker compose logs -f projects_service
+docker compose logs -f experience_service
 docker compose restart portfolio_service
 docker compose down
 ```
@@ -149,6 +165,15 @@ Test the contact service from inside the Docker network:
 
 ```bash
 docker compose exec portfolio_service wget -qO- http://contact_service:3000/health
+```
+
+Test hosted paths through the public origin locally:
+
+```bash
+curl -I http://127.0.0.1/
+curl -I http://127.0.0.1/blog/
+curl -I http://127.0.0.1/projects/
+curl -I http://127.0.0.1/experience/
 ```
 
 ## Terraform
