@@ -71,6 +71,8 @@ portfolio_service or contact_service
 
 Unrelated services should remain running.
 
+If deployment fails with a Docker Compose network label error for `app_default`, make sure the latest pipeline code is deployed. The Compose network is intentionally external, and `deploy-service.sh` creates it when missing instead of asking Compose to own or relabel it.
+
 ## Application Validation Fails
 
 Check:

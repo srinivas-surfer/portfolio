@@ -98,9 +98,18 @@ The service workflows set:
 
 ```text
 DEPLOYMENT_STATE_DIR=/home/ec2-user/portfolio-deployment/releases
+COMPOSE_NETWORK_NAME=app_default
 ```
 
 This keeps release history outside the GitHub checkout workspace so N-1 cleanup can preserve the current and previous successful local image tags across workflow runs.
+
+The Compose network is intentionally external:
+
+```text
+app_default
+```
+
+`deploy-service.sh` creates it when missing. Compose then attaches the targeted service to that existing network instead of trying to recreate or relabel it, which avoids stale network label failures during independent service deployments.
 
 Install Docker Compose V2 manually if `yum install docker-compose-plugin` is not available:
 
