@@ -61,6 +61,14 @@ DECOMMISSION_LEGACY_GATEWAY=true deployment/scripts/decommission-legacy-gateway.
 
 These checks run from inside the Docker network.
 
+The shared application network is:
+
+```text
+app_default
+```
+
+It is treated as an external network by Docker Compose and is created by the deployment script if missing.
+
 ```bash
 docker run --rm --network app_default curlimages/curl:latest -fsS http://portfolio_service/
 docker run --rm --network app_default curlimages/curl:latest -fsS http://experience_service/

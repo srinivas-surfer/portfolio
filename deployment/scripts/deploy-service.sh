@@ -34,6 +34,14 @@ docker pull "$IMAGE_REF"
 export "${IMAGE_TAG_ENV_VAR}=${IMAGE_TAG}"
 export DOCKERHUB_NAMESPACE
 
+compose_network_name="${COMPOSE_NETWORK_NAME:-app_default}"
+if docker network inspect "$compose_network_name" >/dev/null 2>&1; then
+  log "INFO" "Compose network exists: $compose_network_name"
+else
+  log "INFO" "Creating external Compose network: $compose_network_name"
+  docker network create "$compose_network_name" >/dev/null
+fi
+
 log "INFO" "Deploying only compose service: $COMPOSE_SERVICE"
 compose up -d --no-build --no-deps "$COMPOSE_SERVICE"
 

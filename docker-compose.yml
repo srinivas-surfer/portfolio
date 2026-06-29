@@ -79,5 +79,5 @@ services:
 
 networks:
   default:
-    name: app_default
-    driver: bridge
+    name: ${COMPOSE_NETWORK_NAME:-app_default}
+    external: true
