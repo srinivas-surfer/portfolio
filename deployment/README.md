@@ -55,6 +55,14 @@ CORS_ORIGIN
 
 Use a Docker Hub access token, not an account password.
 
+Optional secret for the scheduled HTML report:
+
+```text
+REPORT_TO_EMAIL
+```
+
+If `REPORT_TO_EMAIL` is not configured, the report email is sent to `SES_TO_EMAIL`.
+
 ## GitHub Environments
 
 Create these protected environments:
@@ -257,7 +265,18 @@ and selects the previous successful image tag. The rollback then pulls the image
 
 ## HTML Report
 
-The report workflow is manual and read-only. It generates an HTML artifact with:
+The report workflow is manual and scheduled. It is read-only. It generates an HTML artifact and emails a readable HTML report body through SES SMTP.
+
+The scheduled run uses:
+
+```text
+https://portfolio.srinivaspitchubabu.click
+24h Docker log window
+```
+
+The public domain validates the full user path through Route 53 and CloudFront. Use `http://127.0.0.1` only for manual EC2-origin troubleshooting.
+
+The report includes:
 
 ```text
 Docker and Compose status
@@ -266,6 +285,13 @@ container health and image status
 hosted route health checks
 approximate page-view counts from portfolio_service logs
 container log alert counts
+sanitized ongoing log alert details with detected error codes
+```
+
+Detailed report field definitions and troubleshooting steps are documented in:
+
+```text
+deployment/REPORTS.md
 ```
 
 The report is uploaded as a GitHub Actions artifact named `portfolio-platform-report`. It should not be published as a public page because it contains operational details.

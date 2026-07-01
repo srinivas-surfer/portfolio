@@ -15,8 +15,12 @@ ensure_docker_stack || fail "Docker/Compose bootstrap failed."
 
 REPORT_BASE_URL="${REPORT_BASE_URL:-http://127.0.0.1}"
 REPORT_BASE_URL="${REPORT_BASE_URL%/}"
-REPORT_LOG_TAIL_LINES="${REPORT_LOG_TAIL_LINES:-500}"
-REPORT_PAGE_VIEW_LOG_LINES="${REPORT_PAGE_VIEW_LOG_LINES:-5000}"
+REPORT_LOG_SINCE="${REPORT_LOG_SINCE:-24h}"
+REPORT_LOG_TAIL_LINES="${REPORT_LOG_TAIL_LINES:-all}"
+REPORT_LOG_ALERT_DETAIL_LIMIT="${REPORT_LOG_ALERT_DETAIL_LIMIT:-40}"
+REPORT_LOG_ALERT_DETAIL_MAX_CHARS="${REPORT_LOG_ALERT_DETAIL_MAX_CHARS:-500}"
+REPORT_PAGE_VIEW_LOG_SINCE="${REPORT_PAGE_VIEW_LOG_SINCE:-$REPORT_LOG_SINCE}"
+REPORT_PAGE_VIEW_LOG_LINES="${REPORT_PAGE_VIEW_LOG_LINES:-all}"
 REPORT_SERVICES="${REPORT_SERVICES:-portfolio,blog,projects,experience,contact}"
 REPORT_OUTPUT="${REPORT_OUTPUT:-deployment/reports/platform-report-$(date -u +%Y%m%dT%H%M%SZ).html}"
 
@@ -86,8 +90,130 @@ service_error_count() {
     return
   fi
 
-  docker logs --tail="$REPORT_LOG_TAIL_LINES" "$container" 2>&1 \
+  docker_logs_window "$container" "$REPORT_LOG_TAIL_LINES" "$REPORT_LOG_SINCE" 2>&1 \
     | grep -Eic 'error|warn|fail|exception|unhealthy' || true
+}
+
+docker_logs_window() {
+  local container="$1"
+  local tail_lines="$2"
+  local since_window="${3:-}"
+  local -a log_args=()
+
+  if [[ -n "$since_window" ]]; then
+    log_args+=(--since "$since_window")
+  fi
+
+  if [[ -n "$tail_lines" ]]; then
+    log_args+=(--tail "$tail_lines")
+  fi
+
+  docker logs "${log_args[@]}" "$container"
+}
+
+window_description() {
+  local since_window="$1"
+  local tail_lines="$2"
+
+  if [[ -n "$since_window" ]]; then
+    printf 'since %s, tail %s' "$since_window" "$tail_lines"
+  else
+    printf 'last %s lines' "$tail_lines"
+  fi
+}
+
+extract_alert_keyword() {
+  local line="$1"
+  local keyword
+
+  keyword=$(printf '%s\n' "$line" | grep -Eio 'error|warn|fail|exception|unhealthy' | head -n 1 || true)
+  [[ -n "$keyword" ]] && printf '%s' "$keyword" || printf 'alert'
+}
+
+extract_log_error_code() {
+  local line="$1"
+  local code
+
+  code=$(printf '%s\n' "$line" | sed -nE 's/.*responseCode[^0-9]*([0-9]{3}).*/SMTP \1/p' | head -n 1)
+  [[ -n "$code" ]] && { printf '%s' "$code"; return; }
+
+  code=$(printf '%s\n' "$line" | sed -nE 's/.*"status":"?([45][0-9][0-9])"?.*/HTTP \1/p' | head -n 1)
+  [[ -n "$code" ]] && { printf '%s' "$code"; return; }
+
+  code=$(printf '%s\n' "$line" | sed -nE 's/.*HTTP\/[0-9.]+"[[:space:]]+([45][0-9][0-9]).*/HTTP \1/p' | head -n 1)
+  [[ -n "$code" ]] && { printf '%s' "$code"; return; }
+
+  code=$(printf '%s\n' "$line" | sed -nE "s/.*code[[:space:]]*[:=][[:space:]]*'?([A-Za-z0-9_-]+)'?.*/\1/p" | head -n 1)
+  [[ -n "$code" ]] && { printf '%s' "$code"; return; }
+
+  printf 'n/a'
+}
+
+sanitize_log_line() {
+  printf '%s' "$1" \
+    | sed -E \
+      -e 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/[email]/g' \
+      -e 's/([Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn])[^ ,;}"]*/\1=[redacted]/g'
+}
+
+truncate_text() {
+  local text="$1"
+  local max_chars="$2"
+
+  if (( ${#text} > max_chars )); then
+    printf '%s...' "${text:0:max_chars}"
+  else
+    printf '%s' "$text"
+  fi
+}
+
+emit_log_alert_details() {
+  local details_written=0
+  local truncated="false"
+  local service alert_line keyword code sanitized snippet
+  local -a detail_services
+  local detail_window
+
+  detail_window=$(window_description "$REPORT_LOG_SINCE" "$REPORT_LOG_TAIL_LINES")
+  emit "<h2>Ongoing Log Alert Details</h2>"
+  emit "<p class=\"meta\">Recent alert-like log lines from Docker logs ($(html_escape "$detail_window")). Details are capped at $(html_escape "$REPORT_LOG_ALERT_DETAIL_LIMIT") rows and sanitized before rendering.</p>"
+  emit "<table><thead><tr><th>Service</th><th>Container</th><th>Matched Keyword</th><th>Error Code</th><th>Log Detail</th></tr></thead><tbody>"
+
+  IFS=',' read -r -a detail_services <<< "$REPORT_SERVICES"
+  for service in "${detail_services[@]}"; do
+    service="${service//[[:space:]]/}"
+    [[ -z "$service" ]] && continue
+
+    set_service_context "$service"
+    if ! docker ps -aq -f "name=^/${CONTAINER_NAME}$" | grep -q .; then
+      continue
+    fi
+
+    while IFS= read -r alert_line; do
+      [[ -z "$alert_line" ]] && continue
+
+      if (( details_written >= REPORT_LOG_ALERT_DETAIL_LIMIT )); then
+        truncated="true"
+        break 2
+      fi
+
+      keyword=$(extract_alert_keyword "$alert_line")
+      code=$(extract_log_error_code "$alert_line")
+      sanitized=$(sanitize_log_line "$alert_line")
+      snippet=$(truncate_text "$sanitized" "$REPORT_LOG_ALERT_DETAIL_MAX_CHARS")
+
+      emit "<tr><td>$(html_escape "$SERVICE_NAME")</td><td>$(html_escape "$CONTAINER_NAME")</td><td>$(html_escape "$keyword")</td><td>$(html_escape "$code")</td><td class=\"log-line\">$(html_escape "$snippet")</td></tr>"
+      details_written=$((details_written + 1))
+    done < <(docker_logs_window "$CONTAINER_NAME" "$REPORT_LOG_TAIL_LINES" "$REPORT_LOG_SINCE" 2>&1 | grep -Ei 'error|warn|fail|exception|unhealthy' || true)
+  done
+
+  if (( details_written == 0 )); then
+    emit "<tr><td colspan=\"5\">No matching log alert details found in the scanned window.</td></tr>"
+  elif [[ "$truncated" == "true" ]]; then
+    emit "<tr><td colspan=\"5\">Additional matching log lines were found but omitted because the detail limit was reached.</td></tr>"
+  fi
+
+  emit "</tbody></table>"
 }
 
 http_check() {
@@ -176,6 +302,8 @@ docker_version=$(docker --version 2>/dev/null || printf 'unavailable')
 compose_version_text=$(compose_version 2>/dev/null | head -n 1 || printf 'unavailable')
 disk_summary=$(df -h . | awk 'NR == 2 { print "size=" $2 ", used=" $3 ", available=" $4 ", use=" $5 }')
 memory_summary="unavailable"
+alert_window=$(window_description "$REPORT_LOG_SINCE" "$REPORT_LOG_TAIL_LINES")
+page_view_window=$(window_description "$REPORT_PAGE_VIEW_LOG_SINCE" "$REPORT_PAGE_VIEW_LOG_LINES")
 
 if [[ -r /proc/meminfo ]]; then
   memory_summary=$(awk '
@@ -208,6 +336,7 @@ emit ".card{background:#fff;border:1px solid #dde3ea;border-radius:8px;padding:1
 emit ".label{font-size:12px;text-transform:uppercase;color:#667085;margin-bottom:6px}.value{font-weight:700;word-break:break-word}"
 emit "table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dde3ea;border-radius:8px;overflow:hidden}"
 emit "th,td{text-align:left;border-bottom:1px solid #e5e9ef;padding:10px;vertical-align:top;font-size:14px}th{background:#eef2f7;color:#344054}"
+emit ".log-line{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}"
 emit ".pill{display:inline-block;border-radius:999px;padding:3px 8px;font-weight:700;font-size:12px}.ok{background:#dcfce7;color:#166534}.warn{background:#fef3c7;color:#92400e}.bad{background:#fee2e2;color:#991b1b}.muted{background:#e5e7eb;color:#374151}"
 emit "</style>"
 emit "</head>"
@@ -220,6 +349,8 @@ emit "<div class=\"card\"><div class=\"label\">Docker</div><div class=\"value\">
 emit "<div class=\"card\"><div class=\"label\">Compose</div><div class=\"value\">$(html_escape "$compose_version_text")</div></div>"
 emit "<div class=\"card\"><div class=\"label\">Disk</div><div class=\"value\">$(html_escape "$disk_summary")</div></div>"
 emit "<div class=\"card\"><div class=\"label\">Memory</div><div class=\"value\">$(html_escape "$memory_summary")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Route Base URL</div><div class=\"value\">$(html_escape "$REPORT_BASE_URL")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Log Window</div><div class=\"value\">$(html_escape "$alert_window")</div></div>"
 emit "</section>"
 
 emit "<h2>Container Health</h2>"
@@ -253,6 +384,8 @@ for service in "${report_services[@]}"; do
 done
 emit "</tbody></table>"
 
+emit_log_alert_details
+
 emit "<h2>Application Route Health</h2>"
 emit "<table><thead><tr><th>Route</th><th>URL</th><th>Status</th><th>Duration Seconds</th><th>Bytes</th></tr></thead><tbody>"
 http_check "Home" "/"
@@ -265,13 +398,13 @@ emit "</tbody></table>"
 
 page_log_file="/tmp/platform-report-portfolio-logs.$$"
 if docker ps -aq -f "name=^/portfolio_service$" | grep -q .; then
-  docker logs --tail="$REPORT_PAGE_VIEW_LOG_LINES" portfolio_service > "$page_log_file" 2>&1 || true
+  docker_logs_window "portfolio_service" "$REPORT_PAGE_VIEW_LOG_LINES" "$REPORT_PAGE_VIEW_LOG_SINCE" > "$page_log_file" 2>&1 || true
 else
   : > "$page_log_file"
 fi
 
 emit "<h2>Approximate Page Views</h2>"
-emit "<p class=\"meta\">Counts are based on the last $(html_escape "$REPORT_PAGE_VIEW_LOG_LINES") portfolio container log lines and depend on Docker log retention.</p>"
+emit "<p class=\"meta\">Counts are based on portfolio container access logs ($(html_escape "$page_view_window")) and depend on Docker log retention.</p>"
 emit "<table><thead><tr><th>Path</th><th>Approximate Requests</th></tr></thead><tbody>"
 emit_row "/" "$(count_logged_path exact "/" "$page_log_file")"
 emit_row "/blog/" "$(count_logged_path prefix "/blog" "$page_log_file")"
@@ -286,7 +419,12 @@ rm -f "$page_log_file" /tmp/platform-report-http.out /tmp/platform-report-http.e
 emit "</main></body></html>"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-  printf 'report_path=%s\n' "$REPORT_OUTPUT" >> "$GITHUB_OUTPUT"
+  {
+    printf 'report_path=%s\n' "$REPORT_OUTPUT"
+    printf 'report_base_url=%s\n' "$REPORT_BASE_URL"
+    printf 'report_log_since=%s\n' "$REPORT_LOG_SINCE"
+    printf 'report_date=%s\n' "$(date -u +%Y-%m-%d)"
+  } >> "$GITHUB_OUTPUT"
 fi
 
 log "SUCCESS" "HTML report generated at $REPORT_OUTPUT."
