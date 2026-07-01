@@ -8,7 +8,7 @@ portfolio-platform-report
 
 The workflow is read-only. It does not build images, restart containers, change DNS, update CloudFront, or modify application state.
 
-The scheduled report runs once per day and emails the HTML report body through Amazon SES SMTP.
+The scheduled report runs once per day and emails the HTML report body through the existing `contact_service` SES SMTP runtime.
 
 ## How To Run
 
@@ -55,9 +55,21 @@ GitHub schedules use UTC.
 
 ## Email Delivery
 
-The scheduled report sends the HTML body by email using SES SMTP.
+The scheduled report sends the HTML body by email from inside the running `contact_service` container.
 
-Required GitHub Secrets:
+This avoids depending on host SMTP tools. The EC2 runner does not need `curl` compiled with SMTP support.
+
+Requirements:
+
+```text
+contact_service is running
+contact_service has Node.js and Nodemailer from the contact image
+contact_service has valid SES SMTP environment values
+```
+
+The SES values are still managed through the normal contact deployment process.
+
+Required GitHub Secrets for the contact service runtime:
 
 ```text
 SMTP_HOST

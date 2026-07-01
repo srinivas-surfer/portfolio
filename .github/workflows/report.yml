@@ -85,14 +85,8 @@ jobs:
         env:
           REPORT_HTML_FILE: ${{ steps.report.outputs.report_path }}
           REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
-          SES_TO_EMAIL: ${{ secrets.SES_TO_EMAIL }}
           REPORT_EMAIL_SUBJECT: Portfolio Platform 24-hour Report - ${{ steps.report.outputs.report_date }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
+          CONTACT_CONTAINER_NAME: contact_service
         run: bash deployment/scripts/send-html-report-email.sh
 
       - name: Report summary

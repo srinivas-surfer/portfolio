@@ -73,7 +73,7 @@ report.yml
 
 `report.yml` is read-only and uploads an HTML artifact with service health, hosted route checks, and approximate page-view counts from `portfolio_service` logs.
 
-The scheduled report runs daily against `https://portfolio.srinivaspitchubabu.click`, scans a 24-hour Docker log window, and emails the readable HTML report body through SES SMTP.
+The scheduled report runs daily against `https://portfolio.srinivaspitchubabu.click`, scans a 24-hour Docker log window, and emails the readable HTML report body through the existing `contact_service` SES SMTP runtime.
 
 ## Architecture
 

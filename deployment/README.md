@@ -61,7 +61,7 @@ Optional secret for the scheduled HTML report:
 REPORT_TO_EMAIL
 ```
 
-If `REPORT_TO_EMAIL` is not configured, the report email is sent to `SES_TO_EMAIL`.
+If `REPORT_TO_EMAIL` is not configured, the report email is sent to the `SES_TO_EMAIL` value already available inside `contact_service`.
 
 ## GitHub Environments
 
@@ -265,7 +265,7 @@ and selects the previous successful image tag. The rollback then pulls the image
 
 ## HTML Report
 
-The report workflow is manual and scheduled. It is read-only. It generates an HTML artifact and emails a readable HTML report body through SES SMTP.
+The report workflow is manual and scheduled. It is read-only. It generates an HTML artifact and emails a readable HTML report body through the existing `contact_service` SES SMTP runtime.
 
 The scheduled run uses:
 
@@ -293,6 +293,8 @@ Detailed report field definitions and troubleshooting steps are documented in:
 ```text
 deployment/REPORTS.md
 ```
+
+The email step executes inside the running `contact_service` container, so it reuses the same Node.js, Nodemailer, and SES SMTP environment that the contact form uses. The EC2 runner does not need native SMTP support in `curl`.
 
 The report is uploaded as a GitHub Actions artifact named `portfolio-platform-report`. It should not be published as a public page because it contains operational details.
 
