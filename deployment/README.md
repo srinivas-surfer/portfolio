@@ -15,6 +15,8 @@ Implemented:
 - Experience service build and deploy workflow
 - Contact service build and deploy workflow
 - Manual master platform workflow
+- Manual service rollback workflow
+- Manual HTML platform report workflow
 - Manual-only service deployment after merge to `main`
 - Build approval gate
 - Docker Hub login, push, and logout
@@ -31,8 +33,7 @@ Implemented:
 Not implemented yet:
 
 - Docker Hub remote tag cleanup
-- Rollback automation script
-- Portainer, Prometheus, or cAdvisor
+- Monitoring stack: Portainer, Prometheus, Node Exporter, cAdvisor, Dozzle, and Grafana Cloud remote write
 
 ## Required GitHub Secrets
 
@@ -80,9 +81,15 @@ projects.yml
 experience.yml
 contact.yml
 master.yml
+rollback.yml
+report.yml
 ```
 
 After a PR is approved and merged to `main`, start the required service workflow or the master workflow from the GitHub Actions UI.
+
+Use `rollback.yml` only when a deployed service must be returned to a previous image tag.
+
+Use `report.yml` to generate a downloadable HTML health and page-view report without changing runtime state.
 
 ## EC2 Runner Prerequisites
 
@@ -227,6 +234,41 @@ CORS_ORIGIN
 PORT=3000
 NODE_ENV=production
 ```
+
+## Rollback
+
+The rollback workflow is manual and protected by the `production-deploy` environment.
+
+Inputs:
+
+```text
+service
+image_tag
+confirm=ROLLBACK
+```
+
+If `image_tag` is empty, the rollback script reads the selected service history from:
+
+```text
+/home/ec2-user/portfolio-deployment/releases/<service>.history
+```
+
+and selects the previous successful image tag. The rollback then pulls the image from Docker Hub, deploys only the selected service, validates it, and records the successful rollback as the new current release.
+
+## HTML Report
+
+The report workflow is manual and read-only. It generates an HTML artifact with:
+
+```text
+Docker and Compose status
+EC2 disk and memory summary
+container health and image status
+hosted route health checks
+approximate page-view counts from portfolio_service logs
+container log alert counts
+```
+
+The report is uploaded as a GitHub Actions artifact named `portfolio-platform-report`. It should not be published as a public page because it contains operational details.
 
 ## CloudFront And Route 53
 

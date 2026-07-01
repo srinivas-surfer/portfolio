@@ -23,6 +23,8 @@ CI/CD is implemented for:
 - `experience_service`
 - `contact_service`
 - full-platform master deployment
+- manual service rollback
+- manual HTML health and page-view reporting
 
 The pipelines use:
 
@@ -38,6 +40,8 @@ The pipelines use:
 - Legacy Nginx Proxy Manager decommission before portfolio takes host port `80`
 - N-1 local cleanup for rollback readiness
 - Sequential master deployment for complete platform releases
+- Manual rollback to explicit tags or local N-1 history
+- Downloadable HTML platform reports from the self-hosted runner
 
 Required GitHub Secrets:
 
@@ -58,6 +62,17 @@ CORS_ORIGIN
 Deployment scripts live in `deployment/scripts/`. Workflow logic should only orchestrate those scripts.
 
 See `deployment/README.md`, `deployment/PIPELINES.md`, `deployment/ROLLBACK.md`, and `deployment/RECOVERY.md`.
+
+Rollback and reporting workflows are manual-only:
+
+```text
+rollback.yml
+report.yml
+```
+
+`rollback.yml` changes production runtime state and is protected by the `production-deploy` environment.
+
+`report.yml` is read-only and uploads an HTML artifact with service health, hosted route checks, and approximate page-view counts from `portfolio_service` logs.
 
 ## Architecture
 

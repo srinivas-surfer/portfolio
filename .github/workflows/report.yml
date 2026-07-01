@@ -1,0 +1,78 @@
+name: Platform HTML Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL for route checks
+        required: true
+        default: http://127.0.0.1
+        type: string
+      log_tail_lines:
+        description: Container log lines to scan for alerts
+        required: true
+        default: "500"
+        type: string
+      page_view_log_lines:
+        description: Portfolio log lines to scan for approximate page views
+        required: true
+        default: "5000"
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  TARGET_BRANCH: main
+  MIN_MEMORY_MB: "128"
+  ALLOW_SWAP_MEMORY: "true"
+  COMPOSE_NETWORK_NAME: app_default
+
+jobs:
+  report:
+    name: Generate platform HTML report
+    runs-on: self-hosted
+    steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Synchronize repository
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/git-sync.sh
+
+      - name: Generate HTML report
+        id: report
+        env:
+          REPORT_BASE_URL: ${{ inputs.base_url }}
+          REPORT_LOG_TAIL_LINES: ${{ inputs.log_tail_lines }}
+          REPORT_PAGE_VIEW_LOG_LINES: ${{ inputs.page_view_log_lines }}
+        run: deployment/scripts/generate-html-report.sh
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-platform-report
+          path: ${{ steps.report.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Report summary
+        run: |
+          {
+            echo "## Platform HTML Report"
+            echo
+            echo "- Report artifact: portfolio-platform-report"
+            echo "- Report path: ${{ steps.report.outputs.report_path }}"
+            echo "- Base URL: ${{ inputs.base_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

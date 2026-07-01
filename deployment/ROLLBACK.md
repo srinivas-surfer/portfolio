@@ -25,9 +25,39 @@ deployment/releases/<service>.history
 
 This path is ignored by Git.
 
+## Rollback Workflow
+
+Use the manual GitHub Actions workflow:
+
+```text
+Service Rollback
+```
+
+Inputs:
+
+```text
+service    = portfolio, blog, projects, experience, or contact
+image_tag  = optional Docker image tag
+confirm    = ROLLBACK
+```
+
+If `image_tag` is empty, the workflow selects the previous successful release from the selected service history file.
+
+The workflow:
+
+- pulls the selected Docker Hub image
+- deploys only the selected Compose service
+- validates the container image and health endpoint
+- records the rollback as a successful release
+- runs local N-1 cleanup
+
+The workflow uses the `production-deploy` environment because rollback changes production runtime state.
+
+For contact rollback, the workflow renders `contact/.env` from GitHub Secrets before deployment.
+
 ## Manual App Rollback
 
-Rollback automation is not implemented yet. To manually roll back an app service, select the previous SHA from its history file.
+If GitHub Actions is unavailable, manually roll back an app service by selecting the previous SHA from its history file.
 
 Portfolio:
 
@@ -123,6 +153,6 @@ Responsive UI changes roll back the same way as any other service image change. 
 ## Important Limits
 
 - The pipelines do not delete Docker Hub tags.
-- Automated rollback workflows are not implemented yet.
+- Rollback uses existing Docker Hub image tags; it does not rebuild images.
 - N-1 local rollback depends on the EC2 host retaining the image locally.
 - If the EC2 host is replaced, pull the rollback SHA from Docker Hub.

@@ -14,8 +14,14 @@ CI/CD is implemented for:
 - `experience_service`
 - `contact_service`
 - manual full-platform master deployment
+- manual rollback workflow
+- manual HTML platform report workflow
 
 The service pipelines build and push Docker Hub images, deploy immutable Git SHA tags, validate running containers, and perform local N-1 cleanup. Deployment pipelines are manual-only after merge to `main`; PR code validation remains automatic on pull requests.
+
+The rollback workflow can redeploy an explicit image tag or automatically select the previous successful local release from N-1 history.
+
+The report workflow generates a GitHub Actions HTML artifact with platform health, route checks, log alert counts, and approximate page-view counts.
 
 The public gateway is Route 53 and CloudFront. `portfolio_service` publishes EC2 host port `80` as the CloudFront origin.
 
@@ -105,6 +111,8 @@ docker compose down -v
 - [ ] Run the experience workflow to deploy `experience_service`.
 - [ ] Run the contact workflow to deploy `contact_service`.
 - [ ] Run the master workflow for a complete platform deployment when needed.
+- [ ] Use the rollback workflow for service recovery when needed.
+- [ ] Use the report workflow to capture health and traffic snapshots when needed.
 - [ ] Configure CloudFront distribution with ACM certificate in `us-east-1`.
 - [ ] Configure Route 53 alias record to CloudFront.
 - [ ] Configure `/api/contact*` CloudFront behavior with caching disabled.
