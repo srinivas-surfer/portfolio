@@ -60,7 +60,7 @@ CORS_ORIGIN
 
 Deployment scripts live in `deployment/scripts/`. Workflow logic should only orchestrate those scripts.
 
-See `deployment/README.md`, `deployment/PIPELINES.md`, `deployment/ROLLBACK.md`, and `deployment/RECOVERY.md`.
+See `deployment/README.md`, `deployment/PIPELINES.md`, `deployment/ROLLBACK.md`, `deployment/RECOVERY.md`, and `deployment/REPORTS.md`.
 
 Rollback and reporting workflows are manual-only:
 
@@ -72,6 +72,8 @@ report.yml
 `rollback.yml` changes production runtime state and is protected by the `production-deploy` environment.
 
 `report.yml` is read-only and uploads an HTML artifact with service health, hosted route checks, and approximate page-view counts from `portfolio_service` logs.
+
+The scheduled report runs daily against `https://portfolio.srinivaspitchubabu.click`, scans a 24-hour Docker log window, and emails the readable HTML report body through SES SMTP.
 
 ## Architecture
 

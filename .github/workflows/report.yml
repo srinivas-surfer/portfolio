@@ -1,22 +1,34 @@
 name: Platform HTML Report
 
 on:
+  schedule:
+    - cron: "30 3 * * *"
   workflow_dispatch:
     inputs:
       base_url:
         description: Base URL for route checks
         required: true
-        default: http://127.0.0.1
+        default: https://portfolio.srinivaspitchubabu.click
+        type: string
+      log_since:
+        description: Docker log time window for alert and page-view reporting
+        required: true
+        default: "24h"
         type: string
       log_tail_lines:
         description: Container log lines to scan for alerts
         required: true
-        default: "500"
+        default: "all"
+        type: string
+      log_alert_detail_limit:
+        description: Maximum alert detail rows to include in the HTML report
+        required: true
+        default: "40"
         type: string
       page_view_log_lines:
         description: Portfolio log lines to scan for approximate page views
         required: true
-        default: "5000"
+        default: "all"
         type: string
 
 permissions:
@@ -54,9 +66,11 @@ jobs:
       - name: Generate HTML report
         id: report
         env:
-          REPORT_BASE_URL: ${{ inputs.base_url }}
-          REPORT_LOG_TAIL_LINES: ${{ inputs.log_tail_lines }}
-          REPORT_PAGE_VIEW_LOG_LINES: ${{ inputs.page_view_log_lines }}
+          REPORT_BASE_URL: ${{ inputs.base_url || 'https://portfolio.srinivaspitchubabu.click' }}
+          REPORT_LOG_SINCE: ${{ inputs.log_since || '24h' }}
+          REPORT_LOG_TAIL_LINES: ${{ inputs.log_tail_lines || 'all' }}
+          REPORT_LOG_ALERT_DETAIL_LIMIT: ${{ inputs.log_alert_detail_limit || '40' }}
+          REPORT_PAGE_VIEW_LOG_LINES: ${{ inputs.page_view_log_lines || 'all' }}
         run: bash deployment/scripts/generate-html-report.sh
 
       - name: Upload HTML report
@@ -67,6 +81,20 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Send HTML report email
+        env:
+          REPORT_HTML_FILE: ${{ steps.report.outputs.report_path }}
+          REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
+          SES_TO_EMAIL: ${{ secrets.SES_TO_EMAIL }}
+          REPORT_EMAIL_SUBJECT: Portfolio Platform 24-hour Report - ${{ steps.report.outputs.report_date }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
+        run: bash deployment/scripts/send-html-report-email.sh
+
       - name: Report summary
         run: |
           {
@@ -74,5 +102,7 @@ jobs:
             echo
             echo "- Report artifact: portfolio-platform-report"
             echo "- Report path: ${{ steps.report.outputs.report_path }}"
-            echo "- Base URL: ${{ inputs.base_url }}"
+            echo "- Base URL: ${{ steps.report.outputs.report_base_url }}"
+            echo "- Log window: ${{ steps.report.outputs.report_log_since }}"
+            echo "- Email sent: yes"
           } >> "$GITHUB_STEP_SUMMARY"

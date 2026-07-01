@@ -246,15 +246,30 @@ For contact rollback, the workflow renders `contact/.env` from GitHub Secrets be
 
 ### `report.yml`
 
-Runs manually through `workflow_dispatch`.
+Runs manually through `workflow_dispatch` and daily through `schedule`.
+
+The scheduled run executes at:
+
+```text
+03:30 UTC
+09:00 IST
+```
+
+Scheduled runs use the public production domain:
+
+```text
+https://portfolio.srinivaspitchubabu.click
+```
 
 Purpose:
 
 - generate a downloadable HTML platform report
+- email the HTML report body through SES SMTP
 - summarize Docker, Compose, disk, and memory status
 - summarize container status, health, images, ports, start time, and log alert counts
+- include sanitized ongoing log alert details with detected error codes
 - validate hosted application routes
-- estimate page views from recent `portfolio_service` access logs
+- estimate page views from `portfolio_service` access logs for the selected report window
 
 The report is uploaded as a GitHub Actions artifact named:
 
@@ -263,3 +278,9 @@ portfolio-platform-report
 ```
 
 Page-view counts are approximate because they depend on Docker log retention and the configured number of scanned log lines.
+
+Report field definitions and troubleshooting notes are documented in:
+
+```text
+deployment/REPORTS.md
+```
