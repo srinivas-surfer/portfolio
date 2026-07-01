@@ -101,7 +101,7 @@ http_check() {
     return
   fi
 
-  result=$(curl -sS -o /tmp/platform-report-http.out -w '%{http_code}|%{time_total}|%{size_download}' "$url" 2>/tmp/platform-report-http.err || true)
+  result=$(curl -sS -A "Portfolio-Report-HealthCheck" -o /tmp/platform-report-http.out -w '%{http_code}|%{time_total}|%{size_download}' "$url" 2>/tmp/platform-report-http.err || true)
   status="${result%%|*}"
   result="${result#*|}"
   duration="${result%%|*}"
@@ -122,7 +122,7 @@ contact_contract_check() {
     return
   fi
 
-  result=$(curl -sS -o /tmp/platform-report-http.out -w '%{http_code}|%{time_total}|%{size_download}' \
+  result=$(curl -sS -A "Portfolio-Report-HealthCheck" -o /tmp/platform-report-http.out -w '%{http_code}|%{time_total}|%{size_download}' \
     -X POST "$url" \
     -H "Content-Type: application/json" \
     -d '{}' 2>/tmp/platform-report-http.err || true)
@@ -147,7 +147,22 @@ count_logged_path() {
   local pattern="$2"
   local log_file="$3"
 
-  sed -n 's/.*"\(GET\|POST\|HEAD\) \([^ ]*\) HTTP.*/\2/p' "$log_file" \
+  awk '
+    /Portfolio-Report-HealthCheck|Wget|curl|HealthCheck|kube-probe/ { next }
+    /"request_uri":"[^"]+"/ {
+      line = $0
+      sub(/^.*"request_uri":"/, "", line)
+      sub(/".*$/, "", line)
+      print line
+      next
+    }
+    /"(GET|POST|HEAD) [^ ]+ HTTP/ {
+      line = $0
+      sub(/^.*"(GET|POST|HEAD) /, "", line)
+      sub(/ HTTP.*$/, "", line)
+      print line
+    }
+  ' "$log_file" \
     | awk -v mode="$mode" -v pattern="$pattern" '
         mode == "exact" && ($0 == pattern || index($0, pattern "?") == 1) { count++ }
         mode == "prefix" && index($0, pattern) == 1 { count++ }
