@@ -2,7 +2,7 @@ name: Platform HTML Report
 
 on:
   schedule:
-    - cron: "30 3 * * *"
+    - cron: "30 14 * * *"
   workflow_dispatch:
     inputs:
       base_url:

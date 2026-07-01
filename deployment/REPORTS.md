@@ -47,8 +47,8 @@ Use `http://127.0.0.1` only for manual origin troubleshooting when you want to b
 The workflow runs daily at:
 
 ```text
-03:30 UTC
-09:00 IST
+14:30 UTC
+20:00 IST
 ```
 
 GitHub schedules use UTC.
