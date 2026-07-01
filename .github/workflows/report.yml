@@ -30,6 +30,11 @@ on:
         required: true
         default: "all"
         type: string
+      send_email:
+        description: Keep yes to send email. Leave empty to skip email for this manual run.
+        required: false
+        default: "yes"
+        type: string
 
 permissions:
   contents: read
@@ -82,6 +87,7 @@ jobs:
           retention-days: 14
 
       - name: Send HTML report email
+        if: ${{ github.event_name == 'schedule' || inputs.send_email == 'yes' }}
         env:
           REPORT_HTML_FILE: ${{ steps.report.outputs.report_path }}
           REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
@@ -90,7 +96,15 @@ jobs:
         run: bash deployment/scripts/send-html-report-email.sh
 
       - name: Report summary
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SEND_EMAIL_INPUT: ${{ inputs.send_email || '' }}
         run: |
+          email_status="yes"
+          if [ "$EVENT_NAME" != "schedule" ] && [ "$SEND_EMAIL_INPUT" != "yes" ]; then
+            email_status="no"
+          fi
+
           {
             echo "## Platform HTML Report"
             echo
@@ -98,5 +112,7 @@ jobs:
             echo "- Report path: ${{ steps.report.outputs.report_path }}"
             echo "- Base URL: ${{ steps.report.outputs.report_base_url }}"
             echo "- Log window: ${{ steps.report.outputs.report_log_since }}"
-            echo "- Email sent: yes"
+            echo "- Health score: ${{ steps.report.outputs.health_score }}%"
+            echo "- Server status: ${{ steps.report.outputs.server_status }}"
+            echo "- Email sent: $email_status"
           } >> "$GITHUB_STEP_SUMMARY"

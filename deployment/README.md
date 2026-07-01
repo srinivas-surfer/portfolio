@@ -274,6 +274,8 @@ https://portfolio.srinivaspitchubabu.click
 24h Docker log window
 ```
 
+Manual runs include a `send_email` input. Keep `yes` to send the email, or clear the value to generate only the HTML artifact.
+
 The public domain validates the full user path through Route 53 and CloudFront. Use `http://127.0.0.1` only for manual EC2-origin troubleshooting.
 
 The report includes:
@@ -281,7 +283,11 @@ The report includes:
 ```text
 Docker and Compose status
 EC2 disk and memory summary
+platform health score and server status
+infrastructure health metrics
+public DNS and TLS certificate checks
 container health and image status
+Docker resource usage and restart counts
 hosted route health checks
 approximate page-view counts from portfolio_service logs
 container log alert counts

@@ -26,6 +26,7 @@ log_since                default: 24h
 log_tail_lines           default: all
 log_alert_detail_limit   default: 40
 page_view_log_lines      default: all
+send_email               default: yes
 ```
 
 Scheduled runs use:
@@ -59,6 +60,15 @@ The scheduled report sends the HTML body by email from inside the running `conta
 
 This avoids depending on host SMTP tools. The EC2 runner does not need `curl` compiled with SMTP support.
 
+Manual runs include a `send_email` placeholder:
+
+```text
+yes    send the HTML report email
+empty  skip email and only upload the artifact
+```
+
+Scheduled 8 PM IST runs always send the email.
+
 Requirements:
 
 ```text
@@ -91,6 +101,47 @@ If `REPORT_TO_EMAIL` is not configured, the workflow sends the report to `SES_TO
 
 ## Report Sections
 
+### Platform Health Summary
+
+Shows:
+
+```text
+Health Score
+Server Status
+Running Services
+Healthy Containers
+Failed Routes
+Slow Routes
+Critical Alerts
+Warnings
+Log Alerts
+```
+
+The health score starts at `100` and deducts points for operational risks such as stopped containers, unhealthy healthchecks, failed routes, high disk or memory usage, high load average, TLS certificate expiry risk, DNS failure, log alerts, and slow responses.
+
+Server status is derived from score and findings:
+
+```text
+Healthy   no critical findings and score >= 90
+Warning   warnings exist or score is below 90
+Critical  critical findings exist or score is below 70
+```
+
+### Health Findings
+
+Shows each warning or critical condition that affected the score.
+
+Columns:
+
+```text
+Severity
+Area
+Finding
+Score Impact
+```
+
+This section explains why the score changed, so the health score is not a black box.
+
 ### Host Summary
 
 Shows:
@@ -100,9 +151,49 @@ Docker version
 Docker Compose version
 EC2 disk usage
 EC2 memory and swap availability
+Public route base URL
+Docker log window
 ```
 
 This helps confirm that the runner host has enough capacity for deployments.
+
+### Infrastructure Health
+
+Shows:
+
+```text
+CPU cores
+Load average
+Uptime
+Disk usage %
+Memory usage %
+Swap usage %
+Network RX/TX
+```
+
+Default thresholds:
+
+```text
+disk warning     >= 80%
+disk critical    >= 90%
+memory warning   >= 80%
+memory critical  >= 90%
+swap warning     >= 50%
+swap critical    >= 80%
+load warning     > CPU cores
+load critical    > 2x CPU cores
+```
+
+### Public Endpoint Health
+
+Shows public-domain checks for the configured report base URL:
+
+```text
+DNS resolution
+TLS certificate days remaining
+```
+
+Scheduled reports use `https://portfolio.srinivaspitchubabu.click`, so these checks validate the public Route 53 and CloudFront-facing path.
 
 ### Container Health
 
@@ -126,6 +217,21 @@ Log Alerts
 `Image` shows the exact Docker image tag currently running.
 
 `Ports` shows public host port bindings. It is normal for private services such as blog, projects, experience, and contact to show `none`.
+
+### Docker Resource Usage
+
+Shows point-in-time Docker stats for each container:
+
+```text
+CPU %
+Memory usage
+Memory %
+Network I/O
+Restart count
+Image digest
+```
+
+The report warns when a container is using high CPU or memory at report time. Restart count is included because restarts can indicate unstable services even when the container is currently healthy.
 
 ### Log Alerts
 

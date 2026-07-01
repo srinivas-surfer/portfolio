@@ -261,11 +261,15 @@ Scheduled runs use the public production domain:
 https://portfolio.srinivaspitchubabu.click
 ```
 
+Manual runs include `send_email`. Keep it as `yes` to send the email, or leave it empty to upload only the HTML artifact.
+
 Purpose:
 
 - generate a downloadable HTML platform report
 - email the HTML report body through the existing `contact_service` SES SMTP runtime
+- calculate a platform health score and server status
 - summarize Docker, Compose, disk, and memory status
+- summarize infrastructure, public DNS, TLS certificate, and Docker resource usage
 - summarize container status, health, images, ports, start time, and log alert counts
 - include sanitized ongoing log alert details with detected error codes
 - validate hosted application routes

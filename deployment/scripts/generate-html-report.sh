@@ -23,8 +23,47 @@ REPORT_PAGE_VIEW_LOG_SINCE="${REPORT_PAGE_VIEW_LOG_SINCE:-$REPORT_LOG_SINCE}"
 REPORT_PAGE_VIEW_LOG_LINES="${REPORT_PAGE_VIEW_LOG_LINES:-all}"
 REPORT_SERVICES="${REPORT_SERVICES:-portfolio,blog,projects,experience,contact}"
 REPORT_OUTPUT="${REPORT_OUTPUT:-deployment/reports/platform-report-$(date -u +%Y%m%dT%H%M%SZ).html}"
+REPORT_DISK_WARN_PERCENT="${REPORT_DISK_WARN_PERCENT:-80}"
+REPORT_DISK_CRITICAL_PERCENT="${REPORT_DISK_CRITICAL_PERCENT:-90}"
+REPORT_MEMORY_WARN_PERCENT="${REPORT_MEMORY_WARN_PERCENT:-80}"
+REPORT_MEMORY_CRITICAL_PERCENT="${REPORT_MEMORY_CRITICAL_PERCENT:-90}"
+REPORT_SWAP_WARN_PERCENT="${REPORT_SWAP_WARN_PERCENT:-50}"
+REPORT_SWAP_CRITICAL_PERCENT="${REPORT_SWAP_CRITICAL_PERCENT:-80}"
+REPORT_ROUTE_SLOW_SECONDS="${REPORT_ROUTE_SLOW_SECONDS:-2}"
+REPORT_SSL_WARN_DAYS="${REPORT_SSL_WARN_DAYS:-30}"
+REPORT_SSL_CRITICAL_DAYS="${REPORT_SSL_CRITICAL_DAYS:-7}"
 
 mkdir -p "$(dirname "$REPORT_OUTPUT")"
+
+container_rows_file=$(mktemp /tmp/platform-report-containers.XXXXXX)
+resource_rows_file=$(mktemp /tmp/platform-report-resources.XXXXXX)
+route_rows_file=$(mktemp /tmp/platform-report-routes.XXXXXX)
+endpoint_rows_file=$(mktemp /tmp/platform-report-endpoints.XXXXXX)
+finding_rows_file=$(mktemp /tmp/platform-report-findings.XXXXXX)
+
+cleanup_report_temp_files() {
+  rm -f \
+    "$container_rows_file" \
+    "$resource_rows_file" \
+    "$route_rows_file" \
+    "$endpoint_rows_file" \
+    "$finding_rows_file" \
+    "${page_log_file:-}" \
+    /tmp/platform-report-http.out \
+    /tmp/platform-report-http.err
+}
+
+trap 'cleanup_report_temp_files; fail "Unexpected failure at line $LINENO."' ERR
+
+health_score=100
+warning_count=0
+critical_count=0
+total_services_count=0
+running_services_count=0
+healthy_containers_count=0
+failed_routes_count=0
+slow_routes_count=0
+log_alert_total=0
 
 html_escape() {
   printf '%s' "$1" \
@@ -39,8 +78,8 @@ html_escape() {
 status_class() {
   case "$1" in
     running | healthy | 200 | expected-400 | ok) printf 'ok' ;;
-    unhealthy | exited | dead | failed | 000 | 4?? | 5??) printf 'bad' ;;
-    missing | unknown | unavailable) printf 'warn' ;;
+    unhealthy | exited | dead | failed | critical | 000 | 4?? | 5??) printf 'bad' ;;
+    missing | unknown | unavailable | warning) printf 'warn' ;;
     *) printf 'muted' ;;
   esac
 }
@@ -58,6 +97,137 @@ emit_row() {
     emit "<td>$(html_escape "$cell")</td>"
   done
   emit "</tr>"
+}
+
+emit_file_row() {
+  local file="$1"
+  shift
+
+  local cells=("$@")
+  local cell
+
+  printf '%s\n' "<tr>" >> "$file"
+  for cell in "${cells[@]}"; do
+    printf '<td>%s</td>\n' "$(html_escape "$cell")" >> "$file"
+  done
+  printf '%s\n' "</tr>" >> "$file"
+}
+
+add_finding() {
+  local severity="$1"
+  local area="$2"
+  local message="$3"
+  local deduction="$4"
+
+  if [[ "$severity" == "critical" ]]; then
+    critical_count=$((critical_count + 1))
+  else
+    warning_count=$((warning_count + 1))
+  fi
+
+  if [[ "$deduction" =~ ^[0-9]+$ ]]; then
+    health_score=$((health_score - deduction))
+  fi
+
+  printf '<tr><td><span class="pill %s">%s</span></td><td>%s</td><td>%s</td><td>%s</td></tr>\n' \
+    "$(status_class "$severity")" \
+    "$(html_escape "$severity")" \
+    "$(html_escape "$area")" \
+    "$(html_escape "$message")" \
+    "$(html_escape "-${deduction}")" >> "$finding_rows_file"
+}
+
+finalize_health_score() {
+  if (( health_score < 0 )); then
+    health_score=0
+  elif (( health_score > 100 )); then
+    health_score=100
+  fi
+}
+
+server_status() {
+  if (( critical_count > 0 || health_score < 70 )); then
+    printf 'Critical'
+  elif (( warning_count > 0 || health_score < 90 )); then
+    printf 'Warning'
+  else
+    printf 'Healthy'
+  fi
+}
+
+server_status_class() {
+  case "$(server_status)" in
+    Healthy) printf 'ok' ;;
+    Warning) printf 'warn' ;;
+    *) printf 'bad' ;;
+  esac
+}
+
+numeric_ge() {
+  awk -v left="$1" -v right="$2" 'BEGIN { exit !(left >= right) }'
+}
+
+numeric_gt() {
+  awk -v left="$1" -v right="$2" 'BEGIN { exit !(left > right) }'
+}
+
+percent_number() {
+  printf '%s' "$1" | tr -d '%' | awk '{ printf "%.0f", $1 }'
+}
+
+base_domain() {
+  local value="$1"
+  value="${value#http://}"
+  value="${value#https://}"
+  value="${value%%/*}"
+  value="${value%%:*}"
+  printf '%s' "$value"
+}
+
+resolve_dns() {
+  local host="$1"
+
+  if command -v getent >/dev/null 2>&1; then
+    getent hosts "$host" | awk '{print $1}' | sort -u | paste -sd ', ' -
+    return
+  fi
+
+  if command -v dig >/dev/null 2>&1; then
+    dig +short "$host" | paste -sd ', ' -
+    return
+  fi
+
+  if command -v nslookup >/dev/null 2>&1; then
+    nslookup "$host" 2>/dev/null | awk '/^Address: / {print $2}' | paste -sd ', ' -
+    return
+  fi
+
+  printf 'unavailable'
+}
+
+ssl_days_remaining() {
+  local host="$1"
+  local expiry expiry_epoch now_epoch
+
+  command -v openssl >/dev/null 2>&1 || {
+    printf 'unavailable'
+    return
+  }
+
+  expiry=$(echo | openssl s_client -servername "$host" -connect "${host}:443" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | sed 's/^notAfter=//') || true
+  [[ -n "$expiry" ]] || {
+    printf 'unavailable'
+    return
+  }
+
+  expiry_epoch=$(date -d "$expiry" +%s 2>/dev/null || date -j -f "%b %e %T %Y %Z" "$expiry" +%s 2>/dev/null || true)
+  [[ -n "$expiry_epoch" ]] || {
+    printf 'unavailable'
+    return
+  }
+
+  now_epoch=$(date +%s)
+  printf '%s' $(((expiry_epoch - now_epoch) / 86400))
 }
 
 container_value() {
@@ -80,6 +250,118 @@ container_ports() {
 
   ports=$(docker port "$container" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//') || true
   [[ -n "$ports" ]] && printf '%s' "$ports" || printf 'none'
+}
+
+container_image_digest() {
+  local image="$1"
+  local digest
+
+  digest=$(docker image inspect "$image" --format '{{range .RepoDigests}}{{println .}}{{end}}' 2>/dev/null | head -n 1 || true)
+  [[ -n "$digest" ]] && printf '%s' "$digest" || printf 'n/a'
+}
+
+container_stats() {
+  local container="$1"
+  local stats
+
+  stats=$(docker stats --no-stream --format '{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}' "$container" 2>/dev/null || true)
+  [[ -n "$stats" ]] && printf '%s' "$stats" || printf 'n/a|n/a|n/a|n/a'
+}
+
+collect_container_report() {
+  local service state health image started ports alerts state_css health_css
+  local restart_count digest stats cpu_percent memory_usage memory_percent net_io cpu_number memory_number
+
+  IFS=',' read -r -a report_services <<< "$REPORT_SERVICES"
+  for service in "${report_services[@]}"; do
+    service="${service//[[:space:]]/}"
+    [[ -z "$service" ]] && continue
+
+    total_services_count=$((total_services_count + 1))
+    set_service_context "$service"
+
+    if docker ps -aq -f "name=^/${CONTAINER_NAME}$" | grep -q .; then
+      state=$(container_value "$CONTAINER_NAME" '{{.State.Status}}')
+      health=$(container_health "$CONTAINER_NAME")
+      image=$(container_value "$CONTAINER_NAME" '{{.Config.Image}}')
+      started=$(container_value "$CONTAINER_NAME" '{{.State.StartedAt}}')
+      ports=$(container_ports "$CONTAINER_NAME")
+      alerts=$(service_error_count "$CONTAINER_NAME")
+      restart_count=$(container_value "$CONTAINER_NAME" '{{.RestartCount}}' '0')
+      digest=$(container_image_digest "$image")
+      stats=$(container_stats "$CONTAINER_NAME")
+      IFS='|' read -r cpu_percent memory_usage memory_percent net_io <<< "$stats"
+
+      [[ "$state" == "running" ]] && running_services_count=$((running_services_count + 1))
+      [[ "$health" == "healthy" || "$health" == "none" ]] && healthy_containers_count=$((healthy_containers_count + 1))
+
+      if [[ "$state" != "running" ]]; then
+        add_finding "critical" "$SERVICE_NAME" "Container is not running: $state" 20
+      fi
+
+      if [[ "$health" == "unhealthy" ]]; then
+        add_finding "critical" "$SERVICE_NAME" "Container healthcheck is unhealthy." 15
+      elif [[ "$health" != "healthy" && "$health" != "none" ]]; then
+        add_finding "warning" "$SERVICE_NAME" "Container healthcheck status is $health." 5
+      fi
+
+      if [[ "$restart_count" =~ ^[0-9]+$ && "$restart_count" -gt 0 ]]; then
+        if [[ "$restart_count" -gt 3 ]]; then
+          add_finding "warning" "$SERVICE_NAME" "Container restart count is $restart_count." 5
+        else
+          add_finding "warning" "$SERVICE_NAME" "Container restart count is $restart_count." 2
+        fi
+      fi
+
+      if [[ "$alerts" =~ ^[0-9]+$ && "$alerts" -gt 0 ]]; then
+        log_alert_total=$((log_alert_total + alerts))
+        if [[ "$alerts" -gt 10 ]]; then
+          add_finding "critical" "$SERVICE_NAME" "High log alert count in report window: $alerts." 10
+        else
+          add_finding "warning" "$SERVICE_NAME" "Log alert count in report window: $alerts." 2
+        fi
+      fi
+
+      cpu_number=$(percent_number "$cpu_percent")
+      memory_number=$(percent_number "$memory_percent")
+      if [[ "$cpu_number" =~ ^[0-9]+$ ]] && (( cpu_number >= 80 )); then
+        add_finding "warning" "$SERVICE_NAME" "Container CPU usage is ${cpu_percent}." 5
+      fi
+      if [[ "$memory_number" =~ ^[0-9]+$ ]] && (( memory_number >= 80 )); then
+        add_finding "warning" "$SERVICE_NAME" "Container memory usage is ${memory_percent}." 5
+      fi
+    else
+      state="missing"
+      health="missing"
+      image="missing"
+      started="missing"
+      ports="none"
+      alerts="0"
+      restart_count="n/a"
+      digest="n/a"
+      cpu_percent="n/a"
+      memory_usage="n/a"
+      memory_percent="n/a"
+      net_io="n/a"
+      add_finding "critical" "$SERVICE_NAME" "Container is missing." 20
+    fi
+
+    state_css=$(status_class "$state")
+    health_css=$(status_class "$health")
+    printf '<tr><td>%s</td><td>%s</td><td><span class="pill %s">%s</span></td><td><span class="pill %s">%s</span></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' \
+      "$(html_escape "$SERVICE_NAME")" \
+      "$(html_escape "$CONTAINER_NAME")" \
+      "$state_css" \
+      "$(html_escape "$state")" \
+      "$health_css" \
+      "$(html_escape "$health")" \
+      "$(html_escape "$image")" \
+      "$(html_escape "$ports")" \
+      "$(html_escape "$started")" \
+      "$(html_escape "$alerts")" >> "$container_rows_file"
+
+    emit_file_row "$resource_rows_file" "$SERVICE_NAME" "$CONTAINER_NAME" "$cpu_percent" "$memory_usage" "$memory_percent" "$net_io" "$restart_count" "$digest"
+  done
 }
 
 service_error_count() {
@@ -119,6 +401,119 @@ window_description() {
     printf 'since %s, tail %s' "$since_window" "$tail_lines"
   else
     printf 'last %s lines' "$tail_lines"
+  fi
+}
+
+collect_infrastructure_report() {
+  cpu_cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || printf 'unknown')
+  load_average=$(awk '{print $1" "$2" "$3}' /proc/loadavg 2>/dev/null || uptime | sed 's/^.*load averages*: //' 2>/dev/null || printf 'unknown')
+  load_1m=$(printf '%s' "$load_average" | awk '{print $1}')
+  uptime_text=$(uptime -p 2>/dev/null || uptime 2>/dev/null || printf 'unknown')
+  disk_use_percent=$(df -P . | awk 'NR == 2 {gsub("%", "", $5); print $5}')
+  disk_summary=$(df -h . | awk 'NR == 2 { print "size=" $2 ", used=" $3 ", available=" $4 ", use=" $5 }')
+  memory_summary="unavailable"
+  memory_use_percent="unknown"
+  swap_use_percent="unknown"
+  network_summary="unavailable"
+
+  if [[ -r /proc/meminfo ]]; then
+    read -r memory_summary memory_use_percent swap_use_percent < <(awk '
+      /MemTotal/ { mem_total = int($2 / 1024) }
+      /MemAvailable/ { mem_available = int($2 / 1024) }
+      /SwapTotal/ { swap_total = int($2 / 1024) }
+      /SwapFree/ { swap_free = int($2 / 1024) }
+      END {
+        mem_used = mem_total - mem_available
+        mem_percent = mem_total > 0 ? int(mem_used * 100 / mem_total) : 0
+        swap_used = swap_total - swap_free
+        swap_percent = swap_total > 0 ? int(swap_used * 100 / swap_total) : 0
+        summary = "memory_total=" mem_total "MB,memory_available=" mem_available "MB,swap_total=" swap_total "MB,swap_free=" swap_free "MB"
+        print summary, mem_percent, swap_percent
+      }
+    ' /proc/meminfo)
+    memory_summary="${memory_summary//,/ }"
+  elif command -v vm_stat >/dev/null 2>&1; then
+    memory_summary=$(vm_stat | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+  fi
+
+  if [[ -r /proc/net/dev ]]; then
+    network_summary=$(awk -F'[: ]+' '
+      NR > 2 && $2 != "lo" {
+        rx += $3
+        tx += $11
+      }
+      END {
+        printf "rx=%.2fMB, tx=%.2fMB", rx / 1024 / 1024, tx / 1024 / 1024
+      }
+    ' /proc/net/dev)
+  fi
+
+  if [[ "$disk_use_percent" =~ ^[0-9]+$ ]]; then
+    if (( disk_use_percent >= REPORT_DISK_CRITICAL_PERCENT )); then
+      add_finding "critical" "Infrastructure" "Disk usage is ${disk_use_percent}%." 15
+    elif (( disk_use_percent >= REPORT_DISK_WARN_PERCENT )); then
+      add_finding "warning" "Infrastructure" "Disk usage is ${disk_use_percent}%." 5
+    fi
+  fi
+
+  if [[ "$memory_use_percent" =~ ^[0-9]+$ ]]; then
+    if (( memory_use_percent >= REPORT_MEMORY_CRITICAL_PERCENT )); then
+      add_finding "critical" "Infrastructure" "Memory usage is ${memory_use_percent}%." 15
+    elif (( memory_use_percent >= REPORT_MEMORY_WARN_PERCENT )); then
+      add_finding "warning" "Infrastructure" "Memory usage is ${memory_use_percent}%." 5
+    fi
+  fi
+
+  if [[ "$swap_use_percent" =~ ^[0-9]+$ ]]; then
+    if (( swap_use_percent >= REPORT_SWAP_CRITICAL_PERCENT )); then
+      add_finding "critical" "Infrastructure" "Swap usage is ${swap_use_percent}%." 10
+    elif (( swap_use_percent >= REPORT_SWAP_WARN_PERCENT )); then
+      add_finding "warning" "Infrastructure" "Swap usage is ${swap_use_percent}%." 3
+    fi
+  fi
+
+  if [[ "$cpu_cores" =~ ^[0-9]+$ && "$load_1m" != "unknown" ]]; then
+    if numeric_gt "$load_1m" "$((cpu_cores * 2))"; then
+      add_finding "critical" "Infrastructure" "1-minute load average ${load_1m} is above 2x CPU cores (${cpu_cores})." 10
+    elif numeric_gt "$load_1m" "$cpu_cores"; then
+      add_finding "warning" "Infrastructure" "1-minute load average ${load_1m} is above CPU cores (${cpu_cores})." 5
+    fi
+  fi
+}
+
+collect_public_endpoint_report() {
+  public_host=$(base_domain "$REPORT_BASE_URL")
+  dns_result=$(resolve_dns "$public_host")
+  ssl_remaining="not-applicable"
+
+  if [[ -z "$dns_result" || "$dns_result" == "unavailable" ]]; then
+    add_finding "critical" "Public Endpoint" "DNS resolution failed for $public_host." 10
+    dns_status="failed"
+  else
+    dns_status="ok"
+  fi
+
+  emit_file_row "$endpoint_rows_file" "DNS Resolution" "$public_host" "$dns_status" "$dns_result"
+
+  if [[ "$REPORT_BASE_URL" == https://* ]]; then
+    ssl_remaining=$(ssl_days_remaining "$public_host")
+    if [[ "$ssl_remaining" =~ ^-?[0-9]+$ ]]; then
+      if (( ssl_remaining <= REPORT_SSL_CRITICAL_DAYS )); then
+        add_finding "critical" "Public Endpoint" "TLS certificate expires in ${ssl_remaining} day(s)." 10
+        ssl_status="critical"
+      elif (( ssl_remaining <= REPORT_SSL_WARN_DAYS )); then
+        add_finding "warning" "Public Endpoint" "TLS certificate expires in ${ssl_remaining} day(s)." 5
+        ssl_status="warning"
+      else
+        ssl_status="ok"
+      fi
+      emit_file_row "$endpoint_rows_file" "TLS Certificate" "$public_host" "$ssl_status" "${ssl_remaining} day(s) remaining"
+    else
+      add_finding "warning" "Public Endpoint" "Could not determine TLS certificate expiry for $public_host." 5
+      emit_file_row "$endpoint_rows_file" "TLS Certificate" "$public_host" "unavailable" "$ssl_remaining"
+    fi
+  else
+    emit_file_row "$endpoint_rows_file" "TLS Certificate" "$public_host" "not-applicable" "Base URL is not HTTPS"
   fi
 }
 
@@ -220,10 +615,12 @@ http_check() {
   local label="$1"
   local path="$2"
   local url="${REPORT_BASE_URL}${path}"
-  local result status duration bytes css
+  local result status duration bytes css healthy_status
 
   if ! command -v curl >/dev/null 2>&1; then
-    emit_row "$label" "$url" "curl missing" "unavailable" "unavailable"
+    emit_file_row "$route_rows_file" "$label" "$url" "curl missing" "unavailable" "unavailable"
+    failed_routes_count=$((failed_routes_count + 1))
+    add_finding "critical" "Application Route" "curl is missing; could not check $url." 10
     return
   fi
 
@@ -234,8 +631,29 @@ http_check() {
   bytes="${result#*|}"
   [[ -n "$status" ]] || status="failed"
   css=$(status_class "$status")
+  healthy_status="false"
 
-  emit "<tr><td>$(html_escape "$label")</td><td>$(html_escape "$url")</td><td><span class=\"pill $css\">$(html_escape "$status")</span></td><td>$(html_escape "$duration")</td><td>$(html_escape "$bytes")</td></tr>"
+  if [[ "$status" =~ ^2[0-9][0-9]$ || "$status" =~ ^3[0-9][0-9]$ ]]; then
+    healthy_status="true"
+  fi
+
+  if [[ "$healthy_status" != "true" ]]; then
+    failed_routes_count=$((failed_routes_count + 1))
+    add_finding "critical" "Application Route" "$url returned $status." 12
+  fi
+
+  if [[ "$duration" =~ ^[0-9.]+$ ]] && numeric_gt "$duration" "$REPORT_ROUTE_SLOW_SECONDS"; then
+    slow_routes_count=$((slow_routes_count + 1))
+    add_finding "warning" "Application Route" "$url responded slowly in ${duration}s." 3
+  fi
+
+  printf '<tr><td>%s</td><td>%s</td><td><span class="pill %s">%s</span></td><td>%s</td><td>%s</td></tr>\n' \
+    "$(html_escape "$label")" \
+    "$(html_escape "$url")" \
+    "$css" \
+    "$(html_escape "$status")" \
+    "$(html_escape "$duration")" \
+    "$(html_escape "$bytes")" >> "$route_rows_file"
 }
 
 contact_contract_check() {
@@ -244,7 +662,9 @@ contact_contract_check() {
   local result status duration bytes display_status css
 
   if ! command -v curl >/dev/null 2>&1; then
-    emit_row "$label" "$url" "curl missing" "unavailable" "unavailable"
+    emit_file_row "$route_rows_file" "$label" "$url" "curl missing" "unavailable" "unavailable"
+    failed_routes_count=$((failed_routes_count + 1))
+    add_finding "critical" "Application Route" "curl is missing; could not check $url." 10
     return
   fi
 
@@ -262,10 +682,32 @@ contact_contract_check() {
     display_status="expected-400"
   else
     display_status="$status"
+    failed_routes_count=$((failed_routes_count + 1))
+    add_finding "critical" "Application Route" "$url contract check returned $status." 12
+  fi
+
+  if [[ "$duration" =~ ^[0-9.]+$ ]] && numeric_gt "$duration" "$REPORT_ROUTE_SLOW_SECONDS"; then
+    slow_routes_count=$((slow_routes_count + 1))
+    add_finding "warning" "Application Route" "$url responded slowly in ${duration}s." 3
   fi
 
   css=$(status_class "$display_status")
-  emit "<tr><td>$(html_escape "$label")</td><td>$(html_escape "$url")</td><td><span class=\"pill $css\">$(html_escape "$display_status")</span></td><td>$(html_escape "$duration")</td><td>$(html_escape "$bytes")</td></tr>"
+  printf '<tr><td>%s</td><td>%s</td><td><span class="pill %s">%s</span></td><td>%s</td><td>%s</td></tr>\n' \
+    "$(html_escape "$label")" \
+    "$(html_escape "$url")" \
+    "$css" \
+    "$(html_escape "$display_status")" \
+    "$(html_escape "$duration")" \
+    "$(html_escape "$bytes")" >> "$route_rows_file"
+}
+
+collect_route_report() {
+  http_check "Home" "/"
+  http_check "Blog" "/blog/"
+  http_check "Projects" "/projects/"
+  http_check "Experience" "/experience/"
+  http_check "Contact Page" "/contact.html"
+  contact_contract_check
 }
 
 count_logged_path() {
@@ -300,23 +742,17 @@ generated_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 host_name=$(hostname 2>/dev/null || printf 'unknown')
 docker_version=$(docker --version 2>/dev/null || printf 'unavailable')
 compose_version_text=$(compose_version 2>/dev/null | head -n 1 || printf 'unavailable')
-disk_summary=$(df -h . | awk 'NR == 2 { print "size=" $2 ", used=" $3 ", available=" $4 ", use=" $5 }')
-memory_summary="unavailable"
 alert_window=$(window_description "$REPORT_LOG_SINCE" "$REPORT_LOG_TAIL_LINES")
 page_view_window=$(window_description "$REPORT_PAGE_VIEW_LOG_SINCE" "$REPORT_PAGE_VIEW_LOG_LINES")
 
-if [[ -r /proc/meminfo ]]; then
-  memory_summary=$(awk '
-    /MemTotal/ { total = int($2 / 1024) }
-    /MemAvailable/ { available = int($2 / 1024) }
-    /SwapTotal/ { swap_total = int($2 / 1024) }
-    /SwapFree/ { swap_free = int($2 / 1024) }
-    END {
-      printf "memory_total=%sMB, memory_available=%sMB, swap_total=%sMB, swap_free=%sMB", total, available, swap_total, swap_free
-    }
-  ' /proc/meminfo)
-elif command -v vm_stat >/dev/null 2>&1; then
-  memory_summary=$(vm_stat | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+collect_infrastructure_report
+collect_container_report
+collect_public_endpoint_report
+collect_route_report
+finalize_health_score
+
+if [[ ! -s "$finding_rows_file" ]]; then
+  emit_file_row "$finding_rows_file" "ok" "Platform" "No warnings or critical findings detected." "0"
 fi
 
 : > "$REPORT_OUTPUT"
@@ -344,6 +780,20 @@ emit "<body><main>"
 emit "<h1>Portfolio Platform Report</h1>"
 emit "<p class=\"meta\">Generated at $(html_escape "$generated_at") on $(html_escape "$host_name").</p>"
 
+emit "<h2>Platform Health Summary</h2>"
+emit "<section class=\"grid\">"
+emit "<div class=\"card\"><div class=\"label\">Health Score</div><div class=\"value\">$(html_escape "$health_score")%</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Server Status</div><div class=\"value\"><span class=\"pill $(server_status_class)\">$(html_escape "$(server_status)")</span></div></div>"
+emit "<div class=\"card\"><div class=\"label\">Running Services</div><div class=\"value\">$(html_escape "$running_services_count/$total_services_count")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Healthy Containers</div><div class=\"value\">$(html_escape "$healthy_containers_count/$total_services_count")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Failed Routes</div><div class=\"value\">$(html_escape "$failed_routes_count")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Slow Routes</div><div class=\"value\">$(html_escape "$slow_routes_count")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Critical Alerts</div><div class=\"value\">$(html_escape "$critical_count")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Warnings</div><div class=\"value\">$(html_escape "$warning_count")</div></div>"
+emit "<div class=\"card\"><div class=\"label\">Log Alerts</div><div class=\"value\">$(html_escape "$log_alert_total")</div></div>"
+emit "</section>"
+
+emit "<h2>Host Summary</h2>"
 emit "<section class=\"grid\">"
 emit "<div class=\"card\"><div class=\"label\">Docker</div><div class=\"value\">$(html_escape "$docker_version")</div></div>"
 emit "<div class=\"card\"><div class=\"label\">Compose</div><div class=\"value\">$(html_escape "$compose_version_text")</div></div>"
@@ -353,47 +803,42 @@ emit "<div class=\"card\"><div class=\"label\">Route Base URL</div><div class=\"
 emit "<div class=\"card\"><div class=\"label\">Log Window</div><div class=\"value\">$(html_escape "$alert_window")</div></div>"
 emit "</section>"
 
+emit "<h2>Infrastructure Health</h2>"
+emit "<table><thead><tr><th>Metric</th><th>Value</th><th>Threshold / Notes</th></tr></thead><tbody>"
+emit_row "CPU Cores" "$cpu_cores" "Used with load average thresholding"
+emit_row "Load Average" "$load_average" "Warning above CPU cores; critical above 2x CPU cores"
+emit_row "Uptime" "$uptime_text" "Host uptime"
+emit_row "Disk Usage" "${disk_use_percent}%" "Warning >= ${REPORT_DISK_WARN_PERCENT}%; critical >= ${REPORT_DISK_CRITICAL_PERCENT}%"
+emit_row "Memory Usage" "${memory_use_percent}%" "Warning >= ${REPORT_MEMORY_WARN_PERCENT}%; critical >= ${REPORT_MEMORY_CRITICAL_PERCENT}%"
+emit_row "Swap Usage" "${swap_use_percent}%" "Warning >= ${REPORT_SWAP_WARN_PERCENT}%; critical >= ${REPORT_SWAP_CRITICAL_PERCENT}%"
+emit_row "Network RX/TX" "$network_summary" "Aggregate non-loopback counters from /proc/net/dev when available"
+emit "</tbody></table>"
+
+emit "<h2>Public Endpoint Health</h2>"
+emit "<table><thead><tr><th>Check</th><th>Target</th><th>Status</th><th>Detail</th></tr></thead><tbody>"
+cat "$endpoint_rows_file" >> "$REPORT_OUTPUT"
+emit "</tbody></table>"
+
+emit "<h2>Health Findings</h2>"
+emit "<table><thead><tr><th>Severity</th><th>Area</th><th>Finding</th><th>Score Impact</th></tr></thead><tbody>"
+cat "$finding_rows_file" >> "$REPORT_OUTPUT"
+emit "</tbody></table>"
+
 emit "<h2>Container Health</h2>"
 emit "<table><thead><tr><th>Service</th><th>Container</th><th>Status</th><th>Health</th><th>Image</th><th>Ports</th><th>Started</th><th>Log Alerts</th></tr></thead><tbody>"
+cat "$container_rows_file" >> "$REPORT_OUTPUT"
+emit "</tbody></table>"
 
-IFS=',' read -r -a report_services <<< "$REPORT_SERVICES"
-for service in "${report_services[@]}"; do
-  service="${service//[[:space:]]/}"
-  [[ -z "$service" ]] && continue
-
-  set_service_context "$service"
-  if docker ps -aq -f "name=^/${CONTAINER_NAME}$" | grep -q .; then
-    state=$(container_value "$CONTAINER_NAME" '{{.State.Status}}')
-    health=$(container_health "$CONTAINER_NAME")
-    image=$(container_value "$CONTAINER_NAME" '{{.Config.Image}}')
-    started=$(container_value "$CONTAINER_NAME" '{{.State.StartedAt}}')
-    ports=$(container_ports "$CONTAINER_NAME")
-    alerts=$(service_error_count "$CONTAINER_NAME")
-  else
-    state="missing"
-    health="missing"
-    image="missing"
-    started="missing"
-    ports="none"
-    alerts="0"
-  fi
-
-  state_css=$(status_class "$state")
-  health_css=$(status_class "$health")
-  emit "<tr><td>$(html_escape "$SERVICE_NAME")</td><td>$(html_escape "$CONTAINER_NAME")</td><td><span class=\"pill $state_css\">$(html_escape "$state")</span></td><td><span class=\"pill $health_css\">$(html_escape "$health")</span></td><td>$(html_escape "$image")</td><td>$(html_escape "$ports")</td><td>$(html_escape "$started")</td><td>$(html_escape "$alerts")</td></tr>"
-done
+emit "<h2>Docker Resource Usage</h2>"
+emit "<table><thead><tr><th>Service</th><th>Container</th><th>CPU %</th><th>Memory Usage</th><th>Memory %</th><th>Network I/O</th><th>Restart Count</th><th>Image Digest</th></tr></thead><tbody>"
+cat "$resource_rows_file" >> "$REPORT_OUTPUT"
 emit "</tbody></table>"
 
 emit_log_alert_details
 
 emit "<h2>Application Route Health</h2>"
 emit "<table><thead><tr><th>Route</th><th>URL</th><th>Status</th><th>Duration Seconds</th><th>Bytes</th></tr></thead><tbody>"
-http_check "Home" "/"
-http_check "Blog" "/blog/"
-http_check "Projects" "/projects/"
-http_check "Experience" "/experience/"
-http_check "Contact Page" "/contact.html"
-contact_contract_check
+cat "$route_rows_file" >> "$REPORT_OUTPUT"
 emit "</tbody></table>"
 
 page_log_file="/tmp/platform-report-portfolio-logs.$$"
@@ -414,8 +859,6 @@ emit_row "/contact.html" "$(count_logged_path exact "/contact.html" "$page_log_f
 emit_row "/api/contact" "$(count_logged_path prefix "/api/contact" "$page_log_file")"
 emit "</tbody></table>"
 
-rm -f "$page_log_file" /tmp/platform-report-http.out /tmp/platform-report-http.err
-
 emit "</main></body></html>"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
@@ -424,8 +867,13 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     printf 'report_base_url=%s\n' "$REPORT_BASE_URL"
     printf 'report_log_since=%s\n' "$REPORT_LOG_SINCE"
     printf 'report_date=%s\n' "$(date -u +%Y-%m-%d)"
+    printf 'health_score=%s\n' "$health_score"
+    printf 'server_status=%s\n' "$(server_status)"
   } >> "$GITHUB_OUTPUT"
 fi
+
+cleanup_report_temp_files
+trap - ERR
 
 log "SUCCESS" "HTML report generated at $REPORT_OUTPUT."
 finish "SUCCESS"
