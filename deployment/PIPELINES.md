@@ -21,6 +21,8 @@ Developer branch
   -> N-1 local cleanup
 ```
 
+Rollback and reporting are separate manual operations. They do not run from pull requests or from merges to `main`.
+
 ## Workflows
 
 ### `pr-validation.yml`
@@ -215,3 +217,49 @@ The portfolio workflow also runs a one-time legacy gateway decommission step so 
 The master workflow is the exception to the single-service deployment rule because it is explicitly requested as a full-platform deployment. Even there, each service is deployed through the same targeted `--no-deps` command.
 
 Frontend responsive changes should deploy only the services whose HTML, CSS, or JS changed. Use the master workflow only when a coordinated full frontend rollout is intended.
+
+### `rollback.yml`
+
+Runs manually through `workflow_dispatch`.
+
+Purpose:
+
+- roll back one selected service without building a new image
+- use an explicit image tag when provided
+- otherwise resolve the previous successful local release from N-1 history
+- pull the rollback image from Docker Hub
+- deploy only the selected Compose service with `--no-deps`
+- validate the rolled back container and health endpoint
+- run local cleanup after a successful rollback
+
+Inputs:
+
+```text
+service    = portfolio, blog, projects, experience, or contact
+image_tag  = optional Docker image tag
+confirm    = must be ROLLBACK
+```
+
+The rollback job uses the `production-deploy` environment because it changes production runtime state.
+
+For contact rollback, the workflow renders `contact/.env` from GitHub Secrets before recreating `contact_service`.
+
+### `report.yml`
+
+Runs manually through `workflow_dispatch`.
+
+Purpose:
+
+- generate a downloadable HTML platform report
+- summarize Docker, Compose, disk, and memory status
+- summarize container status, health, images, ports, start time, and log alert counts
+- validate hosted application routes
+- estimate page views from recent `portfolio_service` access logs
+
+The report is uploaded as a GitHub Actions artifact named:
+
+```text
+portfolio-platform-report
+```
+
+Page-view counts are approximate because they depend on Docker log retention and the configured number of scanned log lines.

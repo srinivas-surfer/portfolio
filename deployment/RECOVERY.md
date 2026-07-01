@@ -84,6 +84,8 @@ docker exec portfolio_service wget -qO- http://127.0.0.1/
 
 If the current image fails validation, use the rollback guide to redeploy the previous SHA.
 
+The preferred recovery path is the manual `Service Rollback` workflow. Select the affected service, leave `image_tag` empty for automatic N-1 rollback, and set `confirm` to `ROLLBACK`.
+
 For contact, also check that `contact/.env` exists on the EC2 runner and was generated from GitHub Secrets:
 
 ```bash
@@ -209,3 +211,21 @@ docker compose version
 ```
 
 Do not restart or modify the GitHub runner from the pipeline. If direct Docker access is not available, configure passwordless sudo outside the pipeline or run the runner under a user that already has Docker access.
+
+## Reporting
+
+Use the manual `Platform HTML Report` workflow when you need a snapshot of runtime health before or after recovery.
+
+The report includes:
+
+```text
+Docker and Compose status
+host disk and memory summary
+container state and health
+current image names
+hosted route checks
+approximate page-view counts from portfolio_service logs
+container log alert counts
+```
+
+Download the `portfolio-platform-report` artifact from the workflow run. Keep it internal because it contains operational details.

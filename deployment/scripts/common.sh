@@ -22,6 +22,68 @@ require_env() {
   [[ -n "${!name:-}" ]] || fail "Required environment variable is missing: $name"
 }
 
+set_service_context() {
+  local service="$1"
+
+  case "$service" in
+    portfolio)
+      SERVICE_NAME="portfolio"
+      SERVICE_PATH="portfolio"
+      COMPOSE_SERVICE="portfolio_service"
+      CONTAINER_NAME="portfolio_service"
+      IMAGE_NAME="portfolio"
+      IMAGE_TAG_ENV_VAR="PORTFOLIO_IMAGE_TAG"
+      HEALTH_CHECK_MODE="container-exec"
+      HEALTH_URL="http://127.0.0.1/"
+      ;;
+    blog)
+      SERVICE_NAME="blog"
+      SERVICE_PATH="blog"
+      COMPOSE_SERVICE="blog_service"
+      CONTAINER_NAME="blog_service"
+      IMAGE_NAME="blog"
+      IMAGE_TAG_ENV_VAR="BLOG_IMAGE_TAG"
+      HEALTH_CHECK_MODE="container-exec"
+      HEALTH_URL="http://127.0.0.1/"
+      ;;
+    projects)
+      SERVICE_NAME="projects"
+      SERVICE_PATH="projects"
+      COMPOSE_SERVICE="projects_service"
+      CONTAINER_NAME="projects_service"
+      IMAGE_NAME="projects"
+      IMAGE_TAG_ENV_VAR="PROJECTS_IMAGE_TAG"
+      HEALTH_CHECK_MODE="container-exec"
+      HEALTH_URL="http://127.0.0.1/"
+      ;;
+    experience)
+      SERVICE_NAME="experience"
+      SERVICE_PATH="experience"
+      COMPOSE_SERVICE="experience_service"
+      CONTAINER_NAME="experience_service"
+      IMAGE_NAME="experience"
+      IMAGE_TAG_ENV_VAR="EXPERIENCE_IMAGE_TAG"
+      HEALTH_CHECK_MODE="container-exec"
+      HEALTH_URL="http://127.0.0.1/"
+      ;;
+    contact)
+      SERVICE_NAME="contact"
+      SERVICE_PATH="contact"
+      COMPOSE_SERVICE="contact_service"
+      CONTAINER_NAME="contact_service"
+      IMAGE_NAME="contact"
+      IMAGE_TAG_ENV_VAR="CONTACT_IMAGE_TAG"
+      HEALTH_CHECK_MODE="container-exec"
+      HEALTH_URL="http://127.0.0.1:3000/health"
+      ;;
+    *)
+      fail "Unsupported service: $service"
+      ;;
+  esac
+
+  export SERVICE_NAME SERVICE_PATH COMPOSE_SERVICE CONTAINER_NAME IMAGE_NAME IMAGE_TAG_ENV_VAR HEALTH_CHECK_MODE HEALTH_URL
+}
+
 common_log() {
   if declare -F log >/dev/null 2>&1; then
     log "$1" "$2"
@@ -206,6 +268,10 @@ compose_sudo_env() {
 
   if [[ -n "${DOCKERHUB_NAMESPACE:-}" ]]; then
     printf '%s\n' "DOCKERHUB_NAMESPACE=$DOCKERHUB_NAMESPACE"
+  fi
+
+  if [[ -n "${COMPOSE_NETWORK_NAME:-}" ]]; then
+    printf '%s\n' "COMPOSE_NETWORK_NAME=$COMPOSE_NETWORK_NAME"
   fi
 
   while IFS= read -r name; do

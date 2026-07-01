@@ -1,0 +1,88 @@
+name: Service Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to roll back
+        required: true
+        type: choice
+        options:
+          - portfolio
+          - blog
+          - projects
+          - experience
+          - contact
+      image_tag:
+        description: Optional Docker image tag. Leave empty to use local N-1 history.
+        required: false
+        type: string
+      confirm:
+        description: Type ROLLBACK to confirm production rollback.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  TARGET_BRANCH: main
+  MIN_MEMORY_MB: "256"
+  ALLOW_SWAP_MEMORY: "true"
+  DEPLOYMENT_STATE_DIR: /home/ec2-user/portfolio-deployment/releases
+  COMPOSE_NETWORK_NAME: app_default
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
+  SMTP_HOST: ${{ secrets.SMTP_HOST }}
+  SMTP_PORT: ${{ secrets.SMTP_PORT }}
+  SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+  SMTP_USER: ${{ secrets.SMTP_USER }}
+  SMTP_PASS: ${{ secrets.SMTP_PASS }}
+  SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
+  SES_TO_EMAIL: ${{ secrets.SES_TO_EMAIL }}
+  CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
+  PORT: "3000"
+  NODE_ENV: production
+
+jobs:
+  rollback:
+    name: Roll back selected service
+    runs-on: self-hosted
+    environment: production-deploy
+    steps:
+      - name: Prepare workspace permissions
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ] && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+          fi
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Synchronize repository
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          chmod +x deployment/scripts/*.sh
+          deployment/scripts/git-sync.sh
+
+      - name: Roll back service
+        id: rollback
+        env:
+          ROLLBACK_SERVICE: ${{ inputs.service }}
+          ROLLBACK_IMAGE_TAG: ${{ inputs.image_tag }}
+          ROLLBACK_CONFIRM: ${{ inputs.confirm }}
+        run: deployment/scripts/rollback-service.sh
+
+      - name: Rollback summary
+        run: |
+          {
+            echo "## Service Rollback"
+            echo
+            echo "- Service: ${{ steps.rollback.outputs.service }}"
+            echo "- Compose service: ${{ steps.rollback.outputs.compose_service }}"
+            echo "- Image: ${{ steps.rollback.outputs.image_ref }}"
+          } >> "$GITHUB_STEP_SUMMARY"
