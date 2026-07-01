@@ -44,6 +44,7 @@ env:
   MIN_MEMORY_MB: "128"
   ALLOW_SWAP_MEMORY: "true"
   COMPOSE_NETWORK_NAME: app_default
+  DEPLOYMENT_STATE_DIR: /home/ec2-user/portfolio-deployment/releases
 
 jobs:
   report:
