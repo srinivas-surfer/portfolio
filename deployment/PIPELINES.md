@@ -264,7 +264,7 @@ https://portfolio.srinivaspitchubabu.click
 Purpose:
 
 - generate a downloadable HTML platform report
-- email the HTML report body through SES SMTP
+- email the HTML report body through the existing `contact_service` SES SMTP runtime
 - summarize Docker, Compose, disk, and memory status
 - summarize container status, health, images, ports, start time, and log alert counts
 - include sanitized ongoing log alert details with detected error codes

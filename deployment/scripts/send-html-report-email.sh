@@ -16,89 +16,111 @@ reject_multiline_value() {
   fi
 }
 
-trap 'fail "Unexpected failure at line $LINENO."' ERR
+cleanup_container_file() {
+  if [[ -n "${container_report_file:-}" && -n "${CONTACT_CONTAINER_NAME:-}" ]]; then
+    docker exec "$CONTACT_CONTAINER_NAME" rm -f "$container_report_file" >/dev/null 2>&1 || true
+  fi
+}
+
+trap 'cleanup_container_file; fail "Unexpected failure at line $LINENO."' ERR
 
 log "INFO" "START $STAGE"
 
 REPORT_HTML_FILE="${REPORT_HTML_FILE:-${REPORT_OUTPUT:-}}"
-REPORT_TO_EMAIL="${REPORT_TO_EMAIL:-${SES_TO_EMAIL:-}}"
 REPORT_EMAIL_SUBJECT="${REPORT_EMAIL_SUBJECT:-Portfolio Platform 24-hour Report - $(date -u +%Y-%m-%d)}"
+REPORT_TO_EMAIL="${REPORT_TO_EMAIL:-}"
+CONTACT_CONTAINER_NAME="${CONTACT_CONTAINER_NAME:-contact_service}"
 
-for var in SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS SES_FROM_EMAIL REPORT_TO_EMAIL REPORT_HTML_FILE REPORT_EMAIL_SUBJECT; do
+for var in REPORT_HTML_FILE REPORT_EMAIL_SUBJECT CONTACT_CONTAINER_NAME; do
   require_env "$var"
   reject_multiline_value "$var"
 done
 
+if [[ -n "$REPORT_TO_EMAIL" ]]; then
+  reject_multiline_value REPORT_TO_EMAIL
+fi
+
 [[ -f "$REPORT_HTML_FILE" ]] || fail "Report HTML file not found: $REPORT_HTML_FILE"
 
-if ! [[ "$SMTP_PORT" =~ ^[0-9]+$ ]]; then
-  fail "SMTP_PORT must be numeric."
-fi
+ensure_docker_stack || fail "Docker/Compose bootstrap failed."
 
-if ! [[ "$SMTP_SECURE" =~ ^(true|false)$ ]]; then
-  fail "SMTP_SECURE must be true or false."
-fi
+container_id=$(docker ps -q -f "name=^/${CONTACT_CONTAINER_NAME}$")
+[[ -n "$container_id" ]] || fail "Contact service container is not running: $CONTACT_CONTAINER_NAME"
 
-command -v curl >/dev/null 2>&1 || fail "curl is required to send the report email."
+container_report_file="/tmp/platform-report-email-${GITHUB_RUN_ID:-local}-$$.html"
 
-IFS=',' read -r -a raw_recipients <<< "$REPORT_TO_EMAIL"
-recipients=()
-for raw_recipient in "${raw_recipients[@]}"; do
-  recipient="${raw_recipient//[[:space:]]/}"
-  [[ -n "$recipient" ]] && recipients+=("$recipient")
-done
+log "INFO" "Copying report HTML into $CONTACT_CONTAINER_NAME."
+docker cp "$REPORT_HTML_FILE" "${CONTACT_CONTAINER_NAME}:${container_report_file}"
 
-if (( ${#recipients[@]} == 0 )); then
-  fail "At least one report recipient is required."
-fi
+log "INFO" "Sending platform report email through $CONTACT_CONTAINER_NAME."
+docker exec -i \
+  -w /app \
+  -e REPORT_HTML_FILE="$container_report_file" \
+  -e REPORT_EMAIL_SUBJECT="$REPORT_EMAIL_SUBJECT" \
+  -e REPORT_TO_EMAIL="$REPORT_TO_EMAIL" \
+  "$CONTACT_CONTAINER_NAME" \
+  node <<'NODE'
+const fs = require('fs');
+const nodemailer = require('nodemailer');
 
-mail_file=$(mktemp /tmp/portfolio-report-email.XXXXXX.eml)
-cleanup_mail_file() {
-  rm -f "$mail_file"
+function requireEnv(name) {
+  if (!process.env[name]) {
+    throw new Error(`Required environment variable is missing: ${name}`);
+  }
 }
-trap 'cleanup_mail_file' EXIT
 
-{
-  printf 'Date: %s\n' "$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')"
-  printf 'From: <%s>\n' "$SES_FROM_EMAIL"
-  printf 'To: %s\n' "$(IFS=', '; printf '%s' "${recipients[*]}")"
-  printf 'Subject: %s\n' "$REPORT_EMAIL_SUBJECT"
-  printf 'MIME-Version: 1.0\n'
-  printf 'Content-Type: text/html; charset=UTF-8\n'
-  printf 'Content-Transfer-Encoding: 8bit\n'
-  printf '\n'
-  cat "$REPORT_HTML_FILE"
-} > "$mail_file"
+function parseRecipients(value) {
+  return String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
 
-smtp_scheme="smtp"
-if [[ "$SMTP_SECURE" == "true" ]]; then
-  smtp_scheme="smtps"
-fi
+(async () => {
+  requireEnv('REPORT_HTML_FILE');
+  requireEnv('REPORT_EMAIL_SUBJECT');
+  requireEnv('SMTP_HOST');
+  requireEnv('SMTP_USER');
+  requireEnv('SMTP_PASS');
+  requireEnv('SES_FROM_EMAIL');
 
-smtp_url="${smtp_scheme}://${SMTP_HOST}:${SMTP_PORT}"
-curl_args=(
-  --silent
-  --show-error
-  --fail
-  --url "$smtp_url"
-  --mail-from "$SES_FROM_EMAIL"
-  --user "$SMTP_USER:$SMTP_PASS"
-  --upload-file "$mail_file"
-)
+  const recipients = parseRecipients(process.env.REPORT_TO_EMAIL || process.env.SES_TO_EMAIL);
+  if (recipients.length === 0) {
+    throw new Error('At least one report recipient is required. Set REPORT_TO_EMAIL or SES_TO_EMAIL.');
+  }
 
-if [[ "$SMTP_SECURE" != "true" ]]; then
-  curl_args+=(--ssl-reqd)
-fi
+  const smtpPort = Number(process.env.SMTP_PORT || 587);
+  const html = fs.readFileSync(process.env.REPORT_HTML_FILE, 'utf8');
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: smtpPort,
+    secure: process.env.SMTP_SECURE === 'true',
+    requireTLS: smtpPort !== 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
 
-for recipient in "${recipients[@]}"; do
-  curl_args+=(--mail-rcpt "$recipient")
-done
+  try {
+    await transporter.sendMail({
+      from: process.env.SES_FROM_EMAIL,
+      to: recipients,
+      subject: process.env.REPORT_EMAIL_SUBJECT,
+      html
+    });
+    console.log(`Report email sent to ${recipients.length} recipient(s).`);
+  } finally {
+    transporter.close();
+  }
+})().catch(error => {
+  console.error('Report email failed:', error.message);
+  process.exit(1);
+});
+NODE
 
-log "INFO" "Sending platform report email to ${#recipients[@]} recipient(s)."
-curl "${curl_args[@]}" >/dev/null
-
-cleanup_mail_file
-trap - EXIT
+cleanup_container_file
+trap - ERR
 
 log "SUCCESS" "Platform report email sent."
 finish "SUCCESS"
