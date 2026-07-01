@@ -251,8 +251,8 @@ Runs manually through `workflow_dispatch` and daily through `schedule`.
 The scheduled run executes at:
 
 ```text
-03:30 UTC
-09:00 IST
+14:30 UTC
+20:00 IST
 ```
 
 Scheduled runs use the public production domain:
