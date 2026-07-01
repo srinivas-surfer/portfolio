@@ -75,7 +75,7 @@ jobs:
           ROLLBACK_SERVICE: ${{ inputs.service }}
           ROLLBACK_IMAGE_TAG: ${{ inputs.image_tag }}
           ROLLBACK_CONFIRM: ${{ inputs.confirm }}
-        run: deployment/scripts/rollback-service.sh
+        run: bash deployment/scripts/rollback-service.sh
 
       - name: Rollback summary
         run: |

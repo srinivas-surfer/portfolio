@@ -57,7 +57,7 @@ jobs:
           REPORT_BASE_URL: ${{ inputs.base_url }}
           REPORT_LOG_TAIL_LINES: ${{ inputs.log_tail_lines }}
           REPORT_PAGE_VIEW_LOG_LINES: ${{ inputs.page_view_log_lines }}
-        run: deployment/scripts/generate-html-report.sh
+        run: bash deployment/scripts/generate-html-report.sh
 
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
