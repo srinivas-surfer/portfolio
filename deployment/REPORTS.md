@@ -101,6 +101,23 @@ If `REPORT_TO_EMAIL` is not configured, the workflow sends the report to `SES_TO
 
 ## Report Sections
 
+### Executive Summary
+
+Shows the highest-signal daily status at the top of the email and artifact:
+
+```text
+Overall Status
+Health Score
+Top Issue
+Slowest Route
+Average Route Time
+Rollback Ready
+Top CPU Container
+Top Memory Container
+```
+
+`Top Issue` is the first critical finding when one exists. If there are no critical findings, it shows the first warning. If the platform is clean, it shows that no warnings or critical findings were detected.
+
 ### Platform Health Summary
 
 Shows:
@@ -218,6 +235,59 @@ Log Alerts
 
 `Ports` shows public host port bindings. It is normal for private services such as blog, projects, experience, and contact to show `none`.
 
+### Deployment Version And Rollback Readiness
+
+Shows one row per service:
+
+```text
+Service
+Current image tag
+Image digest
+Deployment age
+N-1 image tag
+Rollback ready
+Release history
+```
+
+The report reads release history from:
+
+```text
+/home/ec2-user/portfolio-deployment/releases/<service>.history
+```
+
+Rollback is marked `ready` only when at least two successful releases exist for that service. If only one successful release exists, the report marks the service as `needs N-1`. If no history exists, it marks `missing history`.
+
+Missing or incomplete rollback history is treated as a warning because rollback readiness is part of production operations.
+
+### Security Snapshot
+
+Shows lightweight runtime security posture:
+
+```text
+Host port bindings
+Privileged mode
+Docker socket mount
+Configured container user
+Read-only root filesystem status
+Sensitive-looking environment variable name count
+Status and notes
+```
+
+The report does not print secret values. It only counts environment variable names that look sensitive, such as names containing:
+
+```text
+PASS
+PASSWORD
+TOKEN
+SECRET
+KEY
+AUTH
+SMTP
+SES
+```
+
+Security snapshot warnings are intentionally lightweight. Running with an image-default user or writable root filesystem is shown as `review`, but it does not reduce the health score by itself. Privileged mode, Docker socket access, or unexpected public host port bindings do affect findings.
+
 ### Docker Resource Usage
 
 Shows point-in-time Docker stats for each container:
@@ -232,6 +302,21 @@ Image digest
 ```
 
 The report warns when a container is using high CPU or memory at report time. Restart count is included because restarts can indicate unstable services even when the container is currently healthy.
+
+### Performance Summary
+
+Shows:
+
+```text
+Average route response time
+Slowest route
+Fastest route
+Top CPU container
+Top memory container
+Highest restart count
+```
+
+Route performance is calculated from the same public-domain health checks used by `Application Route Health`. Container CPU and memory values come from a point-in-time `docker stats --no-stream` sample.
 
 ### Log Alerts
 

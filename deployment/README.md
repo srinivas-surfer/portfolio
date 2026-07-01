@@ -284,9 +284,13 @@ The report includes:
 Docker and Compose status
 EC2 disk and memory summary
 platform health score and server status
+executive summary for daily email review
 infrastructure health metrics
 public DNS and TLS certificate checks
 container health and image status
+deployment version and N-1 rollback readiness
+runtime security snapshot
+performance summary
 Docker resource usage and restart counts
 hosted route health checks
 approximate page-view counts from portfolio_service logs
