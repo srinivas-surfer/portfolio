@@ -9,6 +9,7 @@ Dockerized portfolio site split into small services:
 - `contact/` - Node.js contact API using Amazon SES SMTP
 - `gateway/` - CloudFront and Route 53 gateway notes
 - `terraform/` - AWS EC2 host provisioning
+  
 
 The root `docker-compose.yml` is the primary local orchestration file. It runs all services on a shared external Docker network named `app_default`. Deployment creates the network if it is missing and does not ask Compose to relabel an existing network.
 
