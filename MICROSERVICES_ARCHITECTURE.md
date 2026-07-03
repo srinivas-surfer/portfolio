@@ -125,6 +125,8 @@ POST /api/contact
 
 It validates required fields, checks email format, escapes submitted values before building the email body, and sends through Amazon SES SMTP.
 
+Because contact requests are proxied through `portfolio_service`, the Express app trusts one proxy hop so request rate limiting can use the forwarded client IP.
+
 Configuration lives in environment variables:
 
 ```text

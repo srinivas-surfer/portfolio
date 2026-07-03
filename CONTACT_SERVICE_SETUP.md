@@ -66,6 +66,8 @@ Browser
 
 The portfolio service owns the `/api/contact` proxy in `portfolio/nginx-server.conf`.
 
+The Express app trusts one proxy hop so `express-rate-limit` can use the client IP forwarded by `portfolio_service` instead of treating every request as coming from the Docker proxy.
+
 ## Local Commands
 
 Start everything:
