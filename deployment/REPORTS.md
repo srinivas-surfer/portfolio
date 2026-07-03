@@ -26,6 +26,7 @@ log_since                default: 24h
 log_tail_lines           default: all
 log_alert_detail_limit   default: 40
 page_view_log_lines      default: all
+send_email               default: yes
 ```
 
 Scheduled runs use:
@@ -59,6 +60,15 @@ The scheduled report sends the HTML body by email from inside the running `conta
 
 This avoids depending on host SMTP tools. The EC2 runner does not need `curl` compiled with SMTP support.
 
+Manual runs include a `send_email` placeholder:
+
+```text
+yes    send the HTML report email
+empty  skip email and only upload the artifact
+```
+
+Scheduled 8 PM IST runs always send the email.
+
 Requirements:
 
 ```text
@@ -91,6 +101,64 @@ If `REPORT_TO_EMAIL` is not configured, the workflow sends the report to `SES_TO
 
 ## Report Sections
 
+### Executive Summary
+
+Shows the highest-signal daily status at the top of the email and artifact:
+
+```text
+Overall Status
+Health Score
+Top Issue
+Slowest Route
+Average Route Time
+Rollback Ready
+Top CPU Container
+Top Memory Container
+```
+
+`Top Issue` is the first critical finding when one exists. If there are no critical findings, it shows the first warning. If the platform is clean, it shows that no warnings or critical findings were detected.
+
+### Platform Health Summary
+
+Shows:
+
+```text
+Health Score
+Server Status
+Running Services
+Healthy Containers
+Failed Routes
+Slow Routes
+Critical Alerts
+Warnings
+Log Alerts
+```
+
+The health score starts at `100` and deducts points for operational risks such as stopped containers, unhealthy healthchecks, failed routes, high disk or memory usage, high load average, TLS certificate expiry risk, DNS failure, log alerts, and slow responses.
+
+Server status is derived from score and findings:
+
+```text
+Healthy   no critical findings and score >= 90
+Warning   warnings exist or score is below 90
+Critical  critical findings exist or score is below 70
+```
+
+### Health Findings
+
+Shows each warning or critical condition that affected the score.
+
+Columns:
+
+```text
+Severity
+Area
+Finding
+Score Impact
+```
+
+This section explains why the score changed, so the health score is not a black box.
+
 ### Host Summary
 
 Shows:
@@ -100,9 +168,49 @@ Docker version
 Docker Compose version
 EC2 disk usage
 EC2 memory and swap availability
+Public route base URL
+Docker log window
 ```
 
 This helps confirm that the runner host has enough capacity for deployments.
+
+### Infrastructure Health
+
+Shows:
+
+```text
+CPU cores
+Load average
+Uptime
+Disk usage %
+Memory usage %
+Swap usage %
+Network RX/TX
+```
+
+Default thresholds:
+
+```text
+disk warning     >= 80%
+disk critical    >= 90%
+memory warning   >= 80%
+memory critical  >= 90%
+swap warning     >= 50%
+swap critical    >= 80%
+load warning     > CPU cores
+load critical    > 2x CPU cores
+```
+
+### Public Endpoint Health
+
+Shows public-domain checks for the configured report base URL:
+
+```text
+DNS resolution
+TLS certificate days remaining
+```
+
+Scheduled reports use `https://portfolio.srinivaspitchubabu.click`, so these checks validate the public Route 53 and CloudFront-facing path.
 
 ### Container Health
 
@@ -126,6 +234,89 @@ Log Alerts
 `Image` shows the exact Docker image tag currently running.
 
 `Ports` shows public host port bindings. It is normal for private services such as blog, projects, experience, and contact to show `none`.
+
+### Deployment Version And Rollback Readiness
+
+Shows one row per service:
+
+```text
+Service
+Current image tag
+Image digest
+Deployment age
+N-1 image tag
+Rollback ready
+Release history
+```
+
+The report reads release history from:
+
+```text
+/home/ec2-user/portfolio-deployment/releases/<service>.history
+```
+
+Rollback is marked `ready` only when at least two successful releases exist for that service. If only one successful release exists, the report marks the service as `needs N-1`. If no history exists, it marks `missing history`.
+
+Missing or incomplete rollback history is treated as a warning because rollback readiness is part of production operations.
+
+### Security Snapshot
+
+Shows lightweight runtime security posture:
+
+```text
+Host port bindings
+Privileged mode
+Docker socket mount
+Configured container user
+Read-only root filesystem status
+Sensitive-looking environment variable name count
+Status and notes
+```
+
+The report does not print secret values. It only counts environment variable names that look sensitive, such as names containing:
+
+```text
+PASS
+PASSWORD
+TOKEN
+SECRET
+KEY
+AUTH
+SMTP
+SES
+```
+
+Security snapshot warnings are intentionally lightweight. Running with an image-default user or writable root filesystem is shown as `review`, but it does not reduce the health score by itself. Privileged mode, Docker socket access, or unexpected public host port bindings do affect findings.
+
+### Docker Resource Usage
+
+Shows point-in-time Docker stats for each container:
+
+```text
+CPU %
+Memory usage
+Memory %
+Network I/O
+Restart count
+Image digest
+```
+
+The report warns when a container is using high CPU or memory at report time. Restart count is included because restarts can indicate unstable services even when the container is currently healthy.
+
+### Performance Summary
+
+Shows:
+
+```text
+Average route response time
+Slowest route
+Fastest route
+Top CPU container
+Top memory container
+Highest restart count
+```
+
+Route performance is calculated from the same public-domain health checks used by `Application Route Health`. Container CPU and memory values come from a point-in-time `docker stats --no-stream` sample.
 
 ### Log Alerts
 
