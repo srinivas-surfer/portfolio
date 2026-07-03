@@ -25,6 +25,79 @@ performance summary
 page-view approximation from access logs
 ```
 
+## Phase 2.5: CI/CD And Runtime Hygiene
+
+Status:
+
+```text
+Proposed
+Not approved for implementation
+```
+
+Goal:
+
+Remove configuration drift and improve build/runtime predictability before deeper security hardening.
+
+Scope:
+
+```text
+remove or replace stale root Docker image workflow
+make Compose validation avoid rendering env-file secrets
+add contact package-lock.json for repeatable npm installs
+upgrade contact service Node image to a supported LTS version
+configure Express proxy trust for contact rate limiting
+review Terraform default CIDR values for safer production use
+document local external network creation for docker compose up
+clean tracked generated files such as .DS_Store and empty logs
+```
+
+Likely impacted files:
+
+```text
+.github/workflows/build.yml
+deployment/scripts/code-validation.sh
+deployment/scripts/pre-validation.sh
+contact/package-lock.json
+contact/Dockerfile
+contact/server.js
+terraform/variables.tf
+README.md
+.gitignore
+```
+
+Recommended rollout order:
+
+```text
+CI workflow cleanup
+secret-safe validation changes
+dependency lockfile and Node image upgrade
+proxy-aware contact rate limiting
+Terraform and local documentation updates
+repository hygiene cleanup
+```
+
+Risks:
+
+```text
+removing a workflow can affect existing GitHub branch protection rules
+Node image upgrades can expose dependency/runtime compatibility issues
+proxy trust must match the deployment topology to avoid trusting spoofed client IPs
+Terraform default changes may require explicit variables in existing environments
+cleanup of tracked ignored files should avoid deleting useful local runtime data
+```
+
+Validation:
+
+```text
+PR code validation
+docker compose config -q --no-env-resolution
+contact service healthcheck
+contact API validation contract
+service workflow dry review
+terraform fmt -check
+git status review for tracked cleanup
+```
+
 ## Phase 3: Container Security Hardening
 
 Status:
@@ -249,4 +322,3 @@ explain risks
 identify impacted services and files
 wait for explicit approval
 ```
-
