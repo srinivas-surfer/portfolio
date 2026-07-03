@@ -36,6 +36,27 @@ if (themeToggle) {
   });
 }
 
+const experienceTotal = document.getElementById('experience-total');
+if (experienceTotal) {
+  const startDate = new Date(`${experienceTotal.dataset.startDate || '2021-11-01'}T00:00:00`);
+  const today = new Date();
+  let years = today.getFullYear() - startDate.getFullYear();
+  let months = today.getMonth() - startDate.getMonth();
+
+  if (today.getDate() < startDate.getDate()) {
+    months -= 1;
+  }
+
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const yearLabel = years === 1 ? 'year' : 'years';
+  const monthLabel = months === 1 ? 'month' : 'months';
+  experienceTotal.textContent = `${years} ${yearLabel}, ${months} ${monthLabel}`;
+}
+
 const revealElements = document.querySelectorAll('.section,.card,.skill-card,.blog-card,.blog-post');
 
 if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
