@@ -2,7 +2,7 @@
 
 This file tracks upcoming phases for the Portfolio platform.
 
-These phases are planning items only. No architecture, workflow, deployment, runtime, or code changes should be implemented from this roadmap without explicit approval from the Product Owner / Solution Architect.
+These phases are planning items only. No architecture, workflow, deployment, runtime, or code changes should be implemented from this roadmap without explicit approval from the Solution Discussion Manager / Approval Authority.
 
 ## Current Baseline
 
@@ -46,7 +46,6 @@ make Compose validation avoid rendering env-file secrets
 add contact package-lock.json for repeatable npm installs
 upgrade contact service Node image to a supported LTS version
 configure Express proxy trust for contact rate limiting
-review Terraform default CIDR values for safer production use
 document local external network creation for docker compose up
 clean tracked generated files such as .DS_Store and empty logs
 ```
@@ -60,7 +59,6 @@ deployment/scripts/pre-validation.sh
 contact/package-lock.json
 contact/Dockerfile
 contact/server.js
-terraform/variables.tf
 README.md
 .gitignore
 ```
@@ -72,7 +70,7 @@ CI workflow cleanup
 secret-safe validation changes
 dependency lockfile and Node image upgrade
 proxy-aware contact rate limiting
-Terraform and local documentation updates
+local documentation updates
 repository hygiene cleanup
 ```
 
@@ -82,7 +80,6 @@ Risks:
 removing a workflow can affect existing GitHub branch protection rules
 Node image upgrades can expose dependency/runtime compatibility issues
 proxy trust must match the deployment topology to avoid trusting spoofed client IPs
-Terraform default changes may require explicit variables in existing environments
 cleanup of tracked ignored files should avoid deleting useful local runtime data
 ```
 
@@ -94,7 +91,6 @@ docker compose config -q --no-env-resolution
 contact service healthcheck
 contact API validation contract
 service workflow dry review
-terraform fmt -check
 git status review for tracked cleanup
 ```
 
@@ -315,10 +311,11 @@ retention and privacy policy must be defined
 Before any phase starts:
 
 ```text
+confirm approval authority
 explain design
 explain advantages
 explain disadvantages
 explain risks
 identify impacted services and files
-wait for explicit approval
+wait for explicit approval from the Solution Discussion Manager / Approval Authority
 ```
