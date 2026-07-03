@@ -94,6 +94,79 @@ service workflow dry review
 git status review for tracked cleanup
 ```
 
+## Phase 2.6: Excel-Driven Experience Content
+
+Status:
+
+```text
+Proposed
+Not approved for implementation
+```
+
+Goal:
+
+Make Experience page content easier to update by using an Excel workbook as the source of truth during deployment.
+
+Scope:
+
+```text
+define Experience workbook schema
+store Experience page content in an Excel file
+generate static JSON from Excel during build or deployment
+render Experience summary and role cards from generated JSON
+validate required workbook columns before deployment
+document the content update workflow
+```
+
+Out of current scope:
+
+```text
+This phase is not part of the current static Experience page layout change.
+```
+
+Likely impacted files:
+
+```text
+experience/content/experience.xlsx
+experience/scripts/build-content.js
+experience/package.json
+experience/Dockerfile
+experience/experience.html
+experience/script.js
+README.md
+MICROSERVICES_ARCHITECTURE.md
+deployment/README.md
+```
+
+Recommended rollout order:
+
+```text
+agree workbook schema
+add build-time Excel to JSON generator
+render Experience page from generated JSON
+add validation for missing or malformed workbook data
+document deployment/content update workflow
+```
+
+Risks:
+
+```text
+invalid workbook formatting can break generated content
+date format inconsistencies can produce wrong experience totals
+build dependencies add maintenance overhead
+runtime Excel parsing should be avoided to keep the static service simple
+```
+
+Validation:
+
+```text
+Excel schema validation
+generated JSON review
+Experience page route check
+mobile and desktop visual check
+experience_service image build
+```
+
 ## Phase 3: Container Security Hardening
 
 Status:

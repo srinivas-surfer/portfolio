@@ -22,6 +22,21 @@
 .skill-card p{margin:0;font-weight:700}
 .skill-card:hover{transform:translateY(-6px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid #1f1f1f;margin:12px 0; line-height:1.6;}
+.experience-page{max-width:1160px}
+.experience-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:24px 0 22px}
+.experience-stat-card,.current-role-card{min-height:210px;margin:0;padding:28px}
+.experience-kicker{margin:0 0 12px;color:var(--accent2);font-weight:800;text-transform:uppercase;font-size:.78rem}
+.experience-total{margin:0;font-size:clamp(2rem,5vw,4.25rem);line-height:1;font-weight:900;color:var(--text)}
+.current-role-list{display:grid;gap:14px;margin:0}
+.current-role-list div{display:grid;gap:3px}
+.current-role-list dt{color:var(--muted);font-size:.85rem;font-weight:800;text-transform:uppercase}
+.current-role-list dd{margin:0;font-size:clamp(1.15rem,2vw,1.65rem);font-weight:800;color:var(--text);overflow-wrap:anywhere}
+.experience-timeline{position:relative;display:grid;gap:24px;margin-top:20px;padding-left:38px}
+.experience-timeline::before{content:"";position:absolute;left:13px;top:22px;bottom:22px;width:2px;background:linear-gradient(var(--accent2),var(--accent))}
+.experience-role-card{position:relative;margin:0;min-height:220px;padding:28px}
+.experience-role-card::before{content:"";position:absolute;left:-34px;top:32px;width:18px;height:18px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 4px var(--bg),0 0 0 5px #2a2a2a}
+.experience-role-card:nth-child(even)::before{background:#f4d03f}
+.experience-role-card h3{margin-top:0}
 .grid{display:grid;gap:16px}
 .blog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
 .blog-card{background:var(--card);border:1px solid #1f1f1f;border-radius:14px;padding:18px}
@@ -45,6 +60,7 @@ img{max-width:100%;height:auto}
 .nav-toggle.open span:nth-child(2){opacity:0}
 .nav-toggle.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 .hero,.section{width:min(1100px,100%)}
+.section.experience-page{width:min(1160px,100%)}
 .hero h1{font-size:clamp(1.65rem,4vw,3.25rem);line-height:1.1;margin:0}
 .section-title{font-size:clamp(1.55rem,3vw,2.25rem);line-height:1.15}
 .card,.blog-card{overflow-wrap:anywhere}
@@ -59,6 +75,8 @@ body.light .navbar,body.light .nav-toggle,body.light .socials a,body.light .soci
   body.light .nav a{background:#fff;border-color:#dedee6}
   .hero{padding:44px 16px}
   .section{padding:36px 16px}
+  .experience-overview{gap:16px}
+  .experience-stat-card,.current-role-card,.experience-role-card{padding:22px}
   .footer{gap:18px;align-items:flex-start}
 }
 
@@ -70,6 +88,12 @@ body.light .navbar,body.light .nav-toggle,body.light .socials a,body.light .soci
   .section{padding:30px 14px}
   .cta-row{flex-direction:column;align-items:stretch}
   .btn{text-align:center}
+  .experience-overview{grid-template-columns:1fr;margin-top:18px}
+  .experience-stat-card,.current-role-card{min-height:auto}
+  .experience-timeline{padding-left:28px;gap:18px}
+  .experience-timeline::before{left:9px}
+  .experience-role-card{min-height:auto}
+  .experience-role-card::before{left:-27px;width:16px;height:16px}
   .skills-grid,.blog-grid{grid-template-columns:1fr;gap:14px;padding:0}
   .skill-card img{width:52px;height:52px}
   .card,.blog-card{padding:16px;border-radius:12px}
