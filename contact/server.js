@@ -6,6 +6,8 @@ require('dotenv').config();
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 const contactLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
@@ -157,4 +159,3 @@ function gracefulShutdown(signal) {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
