@@ -27,31 +27,55 @@
 
   <main class="section">
     <h1 class="section-title">Blog</h1>
+    <p class="blog-intro">Practical notes on reliability engineering, observability, cloud infrastructure, and automation drawn from production work and personal projects.</p>
+    <section class="series" aria-labelledby="portfolio-series-title">
+      <p class="blog-tag">Four-part build series</p>
+      <h2 id="portfolio-series-title">Building a Production-Oriented Cloud Portfolio</h2>
+      <p>From the initial idea to application and AWS infrastructure design, this series explains what I built, why I made each decision, and what I would improve next.</p>
+      <ol class="series-links">
+        <li><a href="posts/portfolio-idea.html">The idea and engineering goals</a></li>
+        <li><a href="posts/portfolio-features.html">Project features and reliability controls</a></li>
+        <li><a href="posts/portfolio-application-architecture.html">Application architecture planning and design</a></li>
+        <li><a href="posts/portfolio-infrastructure-design.html">Infrastructure planning and design</a></li>
+      </ol>
+    </section>
     <div class="blog-grid">
       <article class="blog-card">
-        <h3>Optimizing Cloud Infrastructure with Terraform</h3>
-        <p class="meta">Feb 2025</p>
+        <p class="blog-tag">Reliability Engineering</p>
+        <h2>AI-Assisted Anomaly Detection for E-commerce Orders</h2>
+        <p class="meta"><time datetime="2026-07-12">Jul 2026</time> &middot; 8 min read</p>
+        <p>How a four-version system evolved from Z-score analysis into an automated Isolation Forest, LOF, and One-Class SVM ensemble with HTML and Mattermost reporting.</p>
+        <a href="posts/ai-assisted-anomaly-detection.html" aria-label="Read AI-Assisted Anomaly Detection for E-commerce Orders">Read article &rarr;</a>
+      </article>
+
+      <article class="blog-card">
+        <p class="blog-tag">Infrastructure as Code</p>
+        <h2>Optimizing Cloud Infrastructure with Terraform</h2>
+        <p class="meta"><time datetime="2025-02">Feb 2025</time> &middot; 4 min read</p>
         <p>How reusable Terraform modules and GitLab pipelines reduced provisioning errors and sped up delivery across AWS and Azure.</p>
         <a href="posts/blog-post1.html">Read more &rarr;</a>
       </article>
 
       <article class="blog-card">
-        <h3>SRE for a Global Mobile E-commerce Platform</h3>
-        <p class="meta">Jan 2025</p>
+        <p class="blog-tag">SRE</p>
+        <h2>SRE for a Global Mobile E-commerce Platform</h2>
+        <p class="meta"><time datetime="2025-01">Jan 2025</time> &middot; 4 min read</p>
         <p>Keeping payments, search, and checkout reliable with synthetic monitoring and one-view dashboards.</p>
         <a href="posts/blog-post2.html">Read more &rarr;</a>
       </article>
 
       <article class="blog-card">
-        <h3>Monitoring at Scale with Dynatrace &amp; Prometheus</h3>
-        <p class="meta">Dec 2024</p>
+        <p class="blog-tag">Observability</p>
+        <h2>Monitoring at Scale with Dynatrace &amp; Prometheus</h2>
+        <p class="meta"><time datetime="2024-12">Dec 2024</time> &middot; 4 min read</p>
         <p>Patterns for dashboards, alerts, and logs across AKS and OpenShift with ITSM integration.</p>
         <a href="posts/blog-post3.html">Read more &rarr;</a>
       </article>
 
       <article class="blog-card">
-        <h3>Exploring AWS AI Services and Their Real-World Use Cases</h3>
-        <p class="meta">Oct 2025</p>
+        <p class="blog-tag">AWS</p>
+        <h2>Exploring AWS AI Services and Their Real-World Use Cases</h2>
+        <p class="meta"><time datetime="2025-10">Oct 2025</time> &middot; 6 min read</p>
         <p>AWS offers managed AI services that help teams integrate machine learning and artificial intelligence capabilities without deep ML expertise.</p>
         <a href="posts/blog-post4.html">Read more &rarr;</a>
       </article>
@@ -59,7 +83,7 @@
   </main>
 
   <footer class="footer">
-    <p>&copy; 2025 Srinivas Pitchubabu</p>
+    <p>&copy; 2026 Srinivas Pitchubabu</p>
     <div class="socials">
       <span class="social-link" title="GitHub profile URL pending"><img src="assets/icons/github.svg" alt="GitHub"></span>
       <span class="social-link" title="LinkedIn profile URL pending"><img src="assets/icons/linkedin.svg" alt="LinkedIn"></span>

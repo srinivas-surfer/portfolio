@@ -27,20 +27,74 @@
 
   <main class="section">
     <h1 class="section-title">Projects</h1>
+    <p class="projects-intro">Selected reliability, observability, and cloud engineering projects, with architecture decisions and implementation details.</p>
 
-    <article class="card">
+    <section class="featured-projects" aria-label="Featured projects">
+      <article class="card project-card featured-project">
+        <div class="project-heading">
+          <div>
+            <p class="project-label">Featured project</p>
+            <h2>AI-Assisted Anomaly Detection for E-commerce Orders</h2>
+          </div>
+          <span class="project-status">Designed &amp; delivered</span>
+        </div>
+        <p class="meta">Python | Scikit-learn | Plotly | Mattermost | SRE</p>
+        <p>A versioned hourly-order analysis system that identifies unusual country-level behavior using statistical rules and an unsupervised ML ensemble. The current V4 workflow automatically selects new input, classifies severity, and produces operator-ready CLI, HTML, and Mattermost output.</p>
+        <h3>Key capabilities</h3>
+        <ul class="project-features">
+          <li>Isolation Forest, Local Outlier Factor, and One-Class SVM ensemble</li>
+          <li>Mean, standard deviation, latest-order, and Z-score context by country</li>
+          <li>Critical, High, Medium, and Low operational severity classification</li>
+          <li>Latest-file automation, configurable thresholds, and complete results</li>
+          <li>CLI tables, interactive HTML reports, and Mattermost notifications</li>
+          <li>Investigation and support-ticket workflow backed by an analysis playbook</li>
+        </ul>
+        <div class="project-result" aria-label="Documented V4 sample result">
+          <strong>Documented V4 sample</strong>
+          <span>55 countries</span><span>9 anomalies</span><span>16.36% anomaly rate</span>
+        </div>
+        <a class="project-link" href="/blog/posts/ai-assisted-anomaly-detection.html">Read the complete project case study &rarr;</a>
+      </article>
+
+      <article class="card project-card featured-project">
+        <div class="project-heading">
+          <div>
+            <p class="project-label">Personal project</p>
+            <h2>Cloud Portfolio Platform</h2>
+          </div>
+          <span class="project-status">Live platform</span>
+        </div>
+        <p class="meta">AWS | Docker | Nginx | Terraform | GitHub Actions | Node.js</p>
+        <p>A production-oriented portfolio built as independently deployable services. CloudFront and Route 53 deliver the public site, Nginx routes paths to private Docker services, and a Node.js API sends contact requests through Amazon SES SMTP.</p>
+        <h3>Key capabilities</h3>
+        <ul class="project-features">
+          <li>Five containerized services with path-based routing</li>
+          <li>Terraform-managed VPC, subnet, security group, and EC2 host</li>
+          <li>Per-service CI/CD with approvals and immutable Git SHA images</li>
+          <li>N-1 rollback, health checks, smoke tests, and HTML operations reports</li>
+        </ul>
+        <div class="project-links">
+          <a class="project-link" href="/blog/posts/portfolio-idea.html">Start the build series &rarr;</a>
+          <a class="project-link secondary" href="/blog/posts/portfolio-application-architecture.html">View architecture &rarr;</a>
+        </div>
+      </article>
+    </section>
+
+    <h2 class="more-projects-title">More projects</h2>
+
+    <article class="card project-card compact-project">
       <h3>Cost Lens - Multi-Cloud Cost Management</h3>
       <p class="meta">AKS | Azure DevOps | Terraform | Grafana</p>
       <p>Dashboard-driven cost observability with automated ingestion, alerting, tagging, and reporting workflows for cloud teams.</p>
     </article>
 
-    <article class="card">
+    <article class="card project-card compact-project">
       <h3>Serverless HRMS</h3>
       <p class="meta">AWS Lambda | API Gateway | S3 | GitLab CI</p>
       <p>Serverless HRMS proof of concept with CI/CD, environment isolation, and managed AWS services to reduce infrastructure overhead.</p>
     </article>
 
-    <article class="card">
+    <article class="card project-card compact-project">
       <h3>Observability Accelerator</h3>
       <p class="meta">Dynatrace | OpenSearch/ELK | Kubernetes</p>
       <p>Reusable dashboards, alert templates, and log pipelines for faster observability onboarding across containerized workloads.</p>
@@ -48,7 +102,7 @@
   </main>
 
   <footer class="footer">
-    <p>&copy; 2025 Srinivas Pitchubabu</p>
+    <p>&copy; 2026 Srinivas Pitchubabu</p>
     <div class="socials">
       <span class="social-link" title="GitHub profile URL pending"><img src="assets/icons/github.svg" alt="GitHub"></span>
       <span class="social-link" title="LinkedIn profile URL pending"><img src="assets/icons/linkedin.svg" alt="LinkedIn"></span>

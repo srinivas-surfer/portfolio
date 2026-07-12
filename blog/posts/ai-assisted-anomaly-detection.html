@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A case study of a four-version AI-assisted hourly order anomaly detection system using statistical analysis and an unsupervised ML ensemble.">
+  <title>AI-Assisted Anomaly Detection for E-commerce Orders</title>
+  <link rel="stylesheet" href="../style.css">
+  <script defer src="../script.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <a class="brand" href="/">Srinivas Pitchubabu</a>
+    <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-controls="primary-nav" aria-expanded="false"><span></span><span></span><span></span></button>
+    <nav id="primary-nav" class="nav">
+      <a href="/#hero">About</a><a href="/experience/">Experience</a><a href="/projects/">Projects</a><a href="/contact.html">Opportunities</a><a href="/blog/">Blog</a>
+    </nav>
+    <button id="theme-toggle" aria-label="Toggle color theme">Light</button>
+  </header>
+
+  <main class="section blog-post">
+    <p class="blog-tag">Reliability Engineering</p>
+    <h1>AI-Assisted Anomaly Detection for E-commerce Orders</h1>
+    <p class="meta"><time datetime="2026-07-12">July 12, 2026</time> &middot; 8 min read</p>
+    <p>Hourly order traffic varies across markets, campaigns, weekdays, and peak sales events. A single fixed threshold can create alert noise in one country while missing a meaningful change in another. I built this project to identify unusual country-level order behavior and give support teams enough context to decide what to investigate first.</p>
+
+    <div class="post-callout"><strong>Project at a glance</strong><span>Python and scikit-learn</span><span>Four system versions</span><span>Three-model ensemble</span><span>CLI, HTML, and Mattermost output</span></div>
+
+    <h2>The project idea</h2>
+    <p>The source data provides a country name, its expected mean hourly orders, historical standard deviation, and the latest observation. The system compares current behavior with that context, applies statistical and unsupervised ML detection, assigns an operational severity, and generates reports for human review.</p>
+    <p>The goal is AI-assisted operations—not automatic incident declaration. A flagged country may reflect a genuine service problem, a promotion, a regional event, unusual but healthy demand, or poor source data. The output therefore feeds an investigation playbook rather than taking autonomous production action.</p>
+
+    <h2>How the system evolved</h2>
+    <div class="post-table-wrap"><table><thead><tr><th>Version</th><th>Approach</th><th>Main improvement</th><th>Documented sample</th></tr></thead><tbody>
+      <tr><td>V1</td><td>Z-score at ±2.0</td><td>Basic statistical baseline</td><td>2 anomalies / 3.64%</td></tr>
+      <tr><td>V2</td><td>Multi-criteria rules</td><td>Severity and configurable thresholds</td><td>7 anomalies / 12.73%</td></tr>
+      <tr><td>V3</td><td>ML ensemble</td><td>Three models and HTML reporting</td><td>6 anomalies / 10.91%</td></tr>
+      <tr><td>V4</td><td>Production workflow</td><td>Automation and Mattermost integration</td><td>9 anomalies / 16.36%</td></tr>
+    </tbody></table></div>
+    <p>These values come from the documented 55-country sample. They show how the versions behaved on that dataset; they are not accuracy measurements, and a higher anomaly count does not automatically mean a better model.</p>
+
+    <h2>V4 application flow</h2>
+    <pre><code>Hourly CSV data
+    |
+    v
+Validation and feature preparation
+    |
+    +-- Statistical rules and Z-score
+    +-- Isolation Forest
+    +-- Local Outlier Factor
+    +-- One-Class SVM
+    |
+    v
+Ensemble decision and severity
+    |
+    +-- Complete CLI table
+    +-- Interactive HTML report
+    +-- Mattermost notification
+    |
+    v
+Operator investigation and ticket playbook</code></pre>
+
+    <h2>Why use three unsupervised models?</h2>
+    <p>Each model views unusual behavior differently. Isolation Forest isolates observations through random partitions. Local Outlier Factor compares local density with neighboring observations. One-Class SVM learns a boundary around expected behavior. Combining their decisions provides broader coverage than relying on one model's assumptions.</p>
+    <p>V4 keeps the behavior configurable. The documented settings use 100 Isolation Forest estimators with 0.1 contamination, 20 LOF neighbors, and an RBF One-Class SVM with <code>nu</code> set to 0.1. Statistical guardrails include a standard-deviation multiplier of 2.0 and a minimum-order threshold of 5.</p>
+
+    <h2>Input and automation</h2>
+    <p>The current workflow accepts a CSV file with four fields:</p>
+    <pre><code>Name,Mean,StdDev,Last
+AE,2.0,2.0,6.0
+LT,0.3,0.4,1.0
+MX,103.1,95.7,86.0</code></pre>
+    <p>An operator can analyze a specific file or use the <code>--latest</code> option to select the newest available input automatically. V4 displays both anomalous and normal countries so the report preserves the full analysis context instead of showing alerts in isolation.</p>
+
+    <h2>Turning detection into an operational workflow</h2>
+    <p>The terminal output supports a quick check, while the HTML report provides detailed results and visualizations. When enabled, the Mattermost webhook posts an executive summary, complete result context, key observations, and a reference to the report.</p>
+    <ol>
+      <li>Confirm that the input is complete, fresh, and aligned to the intended hour.</li>
+      <li>Review severity, Z-score, and contributing model decisions.</li>
+      <li>Compare the latest value with nearby periods and historical behavior.</li>
+      <li>Check deployments, payment health, promotions, and regional events.</li>
+      <li>Classify the result as business behavior, telemetry error, or service issue.</li>
+      <li>Use the anomaly-analysis playbook for ticket creation and escalation.</li>
+    </ol>
+
+    <h2>Documented V4 result</h2>
+    <div class="metric-grid"><div><strong>55</strong><span>countries analyzed</span></div><div><strong>9</strong><span>anomalies detected</span></div><div><strong>46</strong><span>normal countries</span></div><div><strong>16.36%</strong><span>anomaly rate</span></div></div>
+    <p>The documented examples include the United Arab Emirates and Lithuania at Medium severity. Some observations with a modest Z-score can still be selected because the ensemble decision is not based on Z-score alone. This is exactly why model-level context and human validation matter.</p>
+
+    <h2>Lessons and next improvements</h2>
+    <p>The project demonstrates that detection is only one part of a useful anomaly system. Data validation, explainable output, alert delivery, investigation guidance, and feedback are equally important. The next improvements I would prioritize are pinned dependencies, automated edge-case tests, backtesting against reviewed incidents, model-level decision explanations, drift monitoring, deduplication, and secret-managed webhook configuration.</p>
+    <p>Most importantly, I would measure confirmed incidents, false positives, missed incidents, and detection delay. Those operational outcomes—not the raw number of flagged countries—show whether the system is improving reliability.</p>
+
+    <a class="post-nav" href="/blog/">&larr; Back to Blog</a>
+  </main>
+  <footer class="footer"><p>&copy; 2026 Srinivas Pitchubabu</p></footer>
+</body>
+</html>
