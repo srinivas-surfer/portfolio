@@ -43,6 +43,7 @@ check_contact_contract() {
 
 check_http_ok "/"
 check_http_ok "/blog/"
+check_http_ok "/blog/posts/ai-assisted-anomaly-detection.html"
 check_http_ok "/projects/"
 check_http_ok "/experience/"
 check_contact_contract

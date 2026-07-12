@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A practical architecture for AI-assisted anomaly detection in e-commerce order flows.">
+  <title>AI-Assisted Anomaly Detection for E-commerce Orders</title>
+  <link rel="stylesheet" href="../style.css">
+  <script defer src="../script.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <a class="brand" href="/">Srinivas Pitchubabu</a>
+    <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-controls="primary-nav" aria-expanded="false"><span></span><span></span><span></span></button>
+    <nav id="primary-nav" class="nav">
+      <a href="/#hero">About</a><a href="/experience/">Experience</a><a href="/projects/">Projects</a><a href="/contact.html">Opportunities</a><a href="/blog/">Blog</a>
+    </nav>
+    <button id="theme-toggle" aria-label="Toggle color theme">Light</button>
+  </header>
+
+  <main class="section blog-post">
+    <p class="blog-tag">Reliability Engineering</p>
+    <h1>AI-Assisted Anomaly Detection for E-commerce Orders</h1>
+    <p class="meta"><time datetime="2026-07-12">July 12, 2026</time> &middot; 5 min read</p>
+    <p>Traditional threshold alerts work well for known failure modes, but order traffic changes with campaigns, regions, weekdays, and peak sales. A fixed threshold can therefore stay quiet during a subtle incident or create noise during healthy demand. An AI-assisted detector adds a dynamic signal without replacing operational judgment.</p>
+
+    <h2>Start with an operational question</h2>
+    <p>The useful question is not simply whether a number is unusual. It is whether the current order pattern is unusual enough to require investigation. The input should combine business and platform signals such as order volume, payment failures, checkout latency, cancellation rate, and regional traffic.</p>
+
+    <h2>Use an ensemble instead of one model</h2>
+    <p>Different detectors recognize different behavior. A practical ensemble can combine a seasonal baseline, a rolling statistical score, and an unsupervised model. Normalized scores are weighted into one anomaly score, while guardrails prevent low-volume periods and missing telemetry from generating misleading alerts.</p>
+    <ul>
+      <li>Build a historical baseline for hour-of-day and day-of-week patterns.</li>
+      <li>Detect sudden local changes with rolling windows and robust statistics.</li>
+      <li>Use an unsupervised model for multivariate behavior across related signals.</li>
+      <li>Attach confidence, affected region, and contributing signals to every result.</li>
+    </ul>
+
+    <h2>Make the output useful on call</h2>
+    <p>A model score alone is not an incident. The alert should explain what changed, link to the relevant Grafana dashboard, identify the affected checkout stage, and suggest a runbook. Routing only sustained, high-confidence anomalies keeps the system focused on reducing detection time rather than creating another source of noise.</p>
+
+    <h2>Measure the detector like a production service</h2>
+    <p>Track precision, missed incidents, detection delay, data freshness, and alert volume. Review model-assisted alerts during incident retrospectives and tune them alongside standard observability rules. This feedback loop turns anomaly detection into a dependable SRE capability rather than a standalone experiment.</p>
+
+    <a class="post-nav" href="/blog/">&larr; Back to Blog</a>
+  </main>
+  <footer class="footer"><p>&copy; 2026 Srinivas Pitchubabu</p></footer>
+</body>
+</html>
